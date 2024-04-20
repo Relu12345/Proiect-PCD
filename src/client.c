@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include "connection.h"
+#include <opencv2/core/core_c.h>
+#include <opencv2/highgui/highgui_c.h>
 
 int main() {
     int client_sock;
@@ -23,12 +25,22 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    char send_message[MESSAGE_SIZE];
+    size_t len;
+
     for (;;) {
-        char send_message[MESSAGE_SIZE];
-        fgets(send_message, sizeof(send_message), stdin);
+        memset(send_message, 0, sizeof(send_message));
+
+        if (fgets(send_message, sizeof(send_message), stdin) == NULL) {
+            break;
+        }
+        
+        len = strlen(send_message);
+        if (len > 0 && send_message[len - 1] == '\n') {
+            send_message[len - 1] = '\0';
+        }
 
         send(client_sock, send_message, strlen(send_message), 0);
-
         memset(send_message, 0, sizeof(send_message));
     }
     close(client_sock);
