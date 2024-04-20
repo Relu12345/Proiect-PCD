@@ -3,17 +3,13 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/un.h>
-#include "../include/connection.h"
+#include "connection.h"
 
 int main() {
     int status = remove(SOCKET_NAME);
 
     if( status == 0 )
         printf("%s file deleted successfully.\n", SOCKET_NAME);
-    else
-    {
-        perror("can't delete file ");
-    }
 
     int serv_sock, client_sock;
     serv_sock = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -44,9 +40,7 @@ int main() {
         }
 
         for (;;) {
-            
-            char message[200];
-            char msg[] = "Hello\n";
+            char message[MESSAGE_SIZE];
             if (recv(client_sock, message, sizeof(message), 0) == -1) {
                 perror("recieve failed");
                 exit(EXIT_FAILURE);

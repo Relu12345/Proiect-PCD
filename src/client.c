@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/un.h>
-#include "../include/connection.h"
+#include "connection.h"
 
 int main() {
     int client_sock;
@@ -24,7 +24,7 @@ int main() {
     }
 
     for (;;) {
-        char send_message[100];
+        char send_message[MESSAGE_SIZE];
         fgets(send_message, sizeof(send_message), stdin);
 
         send(client_sock, send_message, strlen(send_message), 0);
