@@ -3,13 +3,13 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/un.h>
-#include "connection.h"
+#include "../include/connection.h"
 
 int main() {
     int client_sock;
     client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (client_sock == -1) {
-        perror('socket failed');
+        perror("socket failed");
         exit(EXIT_FAILURE);
     }
 
@@ -19,7 +19,7 @@ int main() {
     strncpy(addr.sun_path, SOCKET_NAME, sizeof(addr.sun_path) - 1);
 
     if (connect(client_sock, (const struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        perror('connection failed');
+        perror("connection failed");
         exit(EXIT_FAILURE);
     }
 
