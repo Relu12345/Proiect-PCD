@@ -8,5 +8,4 @@ include_directories(include)
 add_executable(client src/client.c)
 add_executable(server src/server.c)
 
-# Link-uim libraria pthread pentru server 
-# target_link_libraries(server pthread)
+target_link_libraries(server pthread)
