@@ -4,27 +4,88 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <pthread.h>
+#include <ctype.h>
 #include "connection.h"
 
 void *client_handler(void *arg) {
     int client_sock = *((int *)arg);
+    char filepath[] = "Please send your file: ";
+    char filters[] = "1.Normal\n2.Greyscale\nChoose number for filter: ";
     char message[MESSAGE_SIZE];
+    char file[MESSAGE_SIZE];
+    char filter[MESSAGE_SIZE];
+    int ok = 1;
+    strcpy(filter, "-1");
 
-    for (;;) {
-        ssize_t bytes_received = recv(client_sock, message, sizeof(message), 0);
-        if (bytes_received == -1) {
-            perror("receive failed");
-            close(client_sock);
-            pthread_exit(NULL);
-        } else if (bytes_received == 0) {
-            printf("Client disconnected.\n");
-            close(client_sock);
-            pthread_exit(NULL);
-        } else {
-            printf("Message from client: %s\n", message);
-            // Handle the received message here as needed
+    if (send(client_sock, filepath, sizeof(filepath), 0) == -1) {
+        perror ("send failed");
+        exit(EXIT_FAILURE);
+    }
+    ssize_t bytes_file = recv(client_sock, file, sizeof(file), 0);
+    if (bytes_file == -1) {
+        perror("receive failed");
+        close(client_sock);
+        pthread_exit(NULL);
+    } else if (bytes_file == 0) {
+        printf("Client disconnected.\n");
+        close(client_sock);
+        pthread_exit(NULL);
+    } else {
+        printf("File path: %s\n", file);
+    }
+
+    while (ok != 0) {
+        switch(atoi(filter)) {
+        case 1:
+            ok = 0;
+            printf("Apply filter 1\n");
+            break;
+        case 2:
+            ok = 0;
+            printf("Apply filter 2\n");
+            break;
+        default:
+            if (send(client_sock, filters, sizeof(filters), 0) == -1) {
+                perror ("send failed");
+                exit(EXIT_FAILURE);
+            }
+            memset(filter, 0, sizeof(filter));
+            ssize_t bytes_filter = recv(client_sock, filter, sizeof(filter), 0);
+            if (bytes_filter == -1) {
+                perror("receive failed");
+                close(client_sock);
+                pthread_exit(NULL);
+            } else if (bytes_filter == 0) {
+                printf("Client disconnected.\n");
+                close(client_sock);
+                pthread_exit(NULL);
+            } else if (atoi(filter) == 0) {
+                char filter_warning[] = "This is not one of the options\n";
+                if (send(client_sock, filter_warning, sizeof(filter_warning), 0) == -1) {
+                    perror ("send failed");
+                    exit(EXIT_FAILURE);
+                }
+                memset(filter, 0, sizeof(filter));
+            }
+            break;
         }
     }
+    close(client_sock);
+    pthread_exit(NULL);
+    // for (;;) {
+    //     ssize_t bytes_received = recv(client_sock, message, sizeof(message), 0);
+    //     if (bytes_received == -1) {
+    //         perror("receive failed");
+    //         close(client_sock);
+    //         pthread_exit(NULL);
+    //     } else if (bytes_received == 0) {
+    //         printf("Client disconnected.\n");
+    //         close(client_sock);
+    //         pthread_exit(NULL);
+    //     } else {
+    //         printf("Message from client: %s\n", message);
+    //     }
+    // }
 }
 
 int main() {

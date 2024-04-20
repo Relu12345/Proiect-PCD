@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/un.h>
+#include <string.h>
 #include "connection.h"
 
 int main() {
@@ -23,13 +24,33 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    char send_message[MESSAGE_SIZE];
+    char recv_message[MESSAGE_SIZE];
+    size_t len;   
+
     for (;;) {
-        char send_message[MESSAGE_SIZE];
-        fgets(send_message, sizeof(send_message), stdin);
-
-        send(client_sock, send_message, strlen(send_message), 0);
-
         memset(send_message, 0, sizeof(send_message));
+        memset(recv_message, 0, sizeof(recv_message));
+
+        if (recv(client_sock, recv_message, sizeof(recv_message), 0) == -1) {
+            perror("receive failed");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("%s\n", recv_message);
+
+        fgets(send_message, sizeof(send_message), stdin);
+        len = strlen(send_message);
+        if (send_message[len - 1] == '\n')
+        {
+            send_message[len - 1] = '\0';
+        }
+        
+        if (send(client_sock, send_message, strlen(send_message), 0) == -1) {
+            perror("send failed");
+            exit(EXIT_FAILURE);
+        }
+        
     }
     close(client_sock);
     return 0;
