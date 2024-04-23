@@ -6,6 +6,7 @@
 #include <sys/un.h>
 #include <pthread.h>
 #include "connection.h"
+#include "opencv_wrapper.h"
 
 typedef struct {
     int id;
@@ -14,7 +15,7 @@ typedef struct {
 
 int client_id = 0;
 
-void *unix_client_handler(void *arg) {
+void *inet_client_handler(void *arg) {
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
@@ -43,33 +44,56 @@ void *unix_client_handler(void *arg) {
     }
 }
 
-void *inet_client_handler(void *arg) {
+void *unix_client_handler(void *arg) {
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
 
-    char message[MESSAGE_SIZE];
-
     printf("Client %d connected.\n", id);
 
-    for (;;) {
-        memset(message, 0, sizeof(message));
-        ssize_t bytes_received = recv(client_sock, message, sizeof(message), 0);
-        if (bytes_received == -1) {
-            perror("receive failed");
-            printf("Client %d disconnected.\n", id);
-            close(client_sock);
-            free(client_info);
-            pthread_exit(NULL);
-        } else if (bytes_received == 0) {
-            printf("Client %d disconnected.\n", id);
-            close(client_sock);
-            free(client_info);
-            pthread_exit(NULL);
-        } else {
-            printf("Message from client %d: %s\n", id, message);
-        }
+    // Receive image data size from client
+    long dataSize;
+    if (recv(client_sock, &dataSize, sizeof(long), 0) <= 0) {
+        perror("Failed to receive image data size from client");
+        close(client_sock);
+        free(client_info);
+        pthread_exit(NULL);
     }
+
+    // Receive image data (grayscale byte array) from the client
+    unsigned char* imageData = (unsigned char*)malloc(dataSize);
+    if (imageData == NULL) {
+        perror("Failed to allocate memory for image data");
+        close(client_sock);
+        free(client_info);
+        pthread_exit(NULL);
+    }
+    if (recv(client_sock, imageData, dataSize, 0) <= 0) {
+        perror("Failed to receive image data from client");
+        free(imageData);
+        close(client_sock);
+        free(client_info);
+        pthread_exit(NULL);
+    }
+
+    // Convert image data to grayscale
+    int width, height;
+    unsigned char* grayscaleData = convertBytesToGrayscale(imageData, dataSize, &width, &height);
+    
+    // Send grayscale data back to client
+    send(client_sock, &width, sizeof(int), 0);
+    send(client_sock, &height, sizeof(int), 0);
+    send(client_sock, grayscaleData, width * height * sizeof(unsigned char), 0);
+
+    // Free memory
+    free(imageData);
+    free(grayscaleData);
+
+    // Close socket and free resources
+    printf("Client %d disconnected.\n", id);
+    close(client_sock);
+    free(client_info);
+    pthread_exit(NULL);
 }
 
 void *unix_server_thread(void *arg) {
@@ -77,7 +101,7 @@ void *unix_server_thread(void *arg) {
 
     if(status == 0)
         printf("%s file deleted successfully.\n", SOCKET_NAME);
-        
+
     int serv_unix_sock, client_unix_sock;
     struct sockaddr_un unix_addr;
     pthread_t thread_id;
