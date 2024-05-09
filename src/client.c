@@ -83,6 +83,11 @@ int main() {
     int width, height;
     recv(client_sock, &width, sizeof(int), 0);
     recv(client_sock, &height, sizeof(int), 0);
+
+    // Print received width and height
+    printf("Received width: %d\n", width);
+    printf("Received height: %d\n", height);
+
     unsigned char* grayscaleData = (unsigned char*)malloc(width * height * sizeof(unsigned char));
     if (grayscaleData == NULL) {
         perror("Failed to allocate memory for grayscale data");
@@ -91,6 +96,7 @@ int main() {
     recv(client_sock, grayscaleData, width * height * sizeof(unsigned char), 0);
 
     // Display the received image on a window
+    printf("Displaying image with width: %d, height: %d\n", width, height);
     showImageFromBytes(grayscaleData, width, height);
 
     // Clean up

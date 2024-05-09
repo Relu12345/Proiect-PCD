@@ -1,4 +1,5 @@
 import socket
+import struct
 import cv2
 import numpy as np
 import tkinter as tk
@@ -7,17 +8,31 @@ from tkinter import filedialog
 SERVER_ADDRESS = ('localhost', 8080)
 
 def send_image(client_socket, image):
-    encoded_image = cv2.imencode('.jpg', image)[1].tostring()
+    encoded_image = cv2.imencode('.jpg', image)[1].tobytes()
+    client_socket.sendall(struct.pack('l', len(encoded_image)))
     client_socket.sendall(encoded_image)
 
-def receive_image(client_socket):
-    image_bytes = b''
-    while True:
-        chunk = client_socket.recv(4096)
+def receive_image(client_socket, width, height):
+    total_size = width * height
+    received_size = 0
+    data = b''
+
+    # Receive image data in chunks until all data is received
+    while received_size < total_size:
+        chunk = client_socket.recv(min(4096, total_size - received_size))
         if not chunk:
-            break
-        image_bytes += chunk
-    return image_bytes
+            raise ConnectionError("Connection closed by server")
+        data += chunk
+        received_size += len(chunk)
+
+    if received_size != total_size:
+        raise ValueError("Received incomplete image data")
+
+    # Convert received data to grayscale image
+    grayscale_image = np.frombuffer(data, dtype=np.uint8).reshape((height, width))
+    return grayscale_image
+
+
 
 def main():
     root = tk.Tk()
@@ -37,12 +52,15 @@ def main():
         cv2.imshow("Selected Image", image)
         cv2.waitKey(0)
 
+        height, width, channels = image.shape
+
         send_image(client_socket, image)
         print("Image sent successfully.")
+        grayscale_image = receive_image(client_socket, width, height)
+        print("Image received successfully.")
 
-        received_bytes = receive_image(client_socket)
-        received_image = cv2.imdecode(np.frombuffer(received_bytes, np.uint8), cv2.IMREAD_GRAYSCALE)
-        cv2.imshow("Converted Image", received_image)
+        # Display grayscale image
+        cv2.imshow("Grayscale Image", grayscale_image)
         cv2.waitKey(0)
 
     except Exception as e:

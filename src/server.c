@@ -15,36 +15,7 @@ typedef struct {
 
 int client_id = 0;
 
-void *inet_client_handler(void *arg) {
-    ClientInfo *client_info = (ClientInfo *)arg;
-    int client_sock = client_info->sock_fd;
-    int id = client_info->id;
-
-    char message[MESSAGE_SIZE];
-
-    printf("Client %d connected.\n", id);
-
-    for (;;) {
-        memset(&message, 0, sizeof(message));
-        ssize_t bytes_received = recv(client_sock, message, sizeof(message), 0);
-        if (bytes_received == -1) {
-            perror("receive failed");
-            printf("Client %d disconnected.\n", id);
-            close(client_sock);
-            free(client_info);
-            pthread_exit(NULL);
-        } else if (bytes_received == 0) {
-            printf("Client %d disconnected.\n", id);
-            close(client_sock);
-            free(client_info);
-            pthread_exit(NULL);
-        } else {
-            printf("Message from client %d: %s\n", id, message);
-        }
-    }
-}
-
-void *unix_client_handler(void *arg) {
+void *client_handler(void *arg) {
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
@@ -60,6 +31,8 @@ void *unix_client_handler(void *arg) {
         pthread_exit(NULL);
     }
 
+    printf("dataSize: %ld\n", dataSize);
+
     // Receive image data (grayscale byte array) from the client
     unsigned char* imageData = (unsigned char*)malloc(dataSize);
     if (imageData == NULL) {
@@ -68,6 +41,8 @@ void *unix_client_handler(void *arg) {
         free(client_info);
         pthread_exit(NULL);
     }
+
+    // Receive image data from client
     if (recv(client_sock, imageData, dataSize, 0) <= 0) {
         perror("Failed to receive image data from client");
         free(imageData);
@@ -79,11 +54,15 @@ void *unix_client_handler(void *arg) {
     // Convert image data to grayscale
     int width, height;
     unsigned char* grayscaleData = convertBytesToGrayscale(imageData, dataSize, &width, &height);
+
+    printf("Width: %d\nHeight: %d\n", width, height);
     
     // Send grayscale data back to client
     send(client_sock, &width, sizeof(int), 0);
     send(client_sock, &height, sizeof(int), 0);
     send(client_sock, grayscaleData, width * height * sizeof(unsigned char), 0);
+
+    printf("Width: %d\nHeight: %d\n", width, height);
 
     // Free memory
     free(imageData);
@@ -91,7 +70,6 @@ void *unix_client_handler(void *arg) {
 
     // Close socket and free resources
     printf("Client %d disconnected.\n", id);
-    close(client_sock);
     free(client_info);
     pthread_exit(NULL);
 }
@@ -140,7 +118,7 @@ void *unix_server_thread(void *arg) {
             client_info->id = client_id++;
             client_info->sock_fd = client_unix_sock;
 
-            if (pthread_create(&thread_id, NULL, unix_client_handler, (void *)client_info) != 0) {
+            if (pthread_create(&thread_id, NULL, client_handler, (void *)client_info) != 0) {
                 perror("pthread_create failed");
                 close(client_unix_sock);
             }
@@ -196,7 +174,7 @@ void *inet_server_thread(void *arg) {
             client_info->id = client_id++;
             client_info->sock_fd = client_inet_sock;
 
-            if (pthread_create(&thread_id, NULL, inet_client_handler, (void *)client_info) != 0) {
+            if (pthread_create(&thread_id, NULL, client_handler, (void *)client_info) != 0) {
                 perror("pthread_create failed");
                 close(client_inet_sock);
             }
