@@ -35,7 +35,7 @@ void enableEcho() {
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 }
 
-void processClientLogin(const char* message, char* username, char* password) {
+void processClientInfo(const char* message, char* username, char* password) {
     // Tokenize the message based on the delimiter
     char* token = strtok((char*)message, ",");
     if (token != NULL) {
@@ -50,95 +50,72 @@ void processClientLogin(const char* message, char* username, char* password) {
     }
 }
 
-// Functia pentru logarea unui utilizator cu parola sa
 int login(char *username, char *password) {
-    // Deschidem fisierul unde sunt stocate credentialele
     FILE *file = fopen("/tmp/credentials.txt", "r");
 
-    // Daca acesta nu exista
     if (file == NULL) {
-        // Afisam o eroare
         perror("Eroare");
         fprintf(stderr, "Probabil nu exista nici un user. Incearca sa creezi un user!\n");
-        return 1; // Returnam 1 cand gasim o problema
+        return 1;
     }
 
-    // Definim variabile pentru fiecare credential (nume si parola) deja stocat in fisierul de credentiale
     char stored_username[MAX_USERNAME_LENGTH];
     char stored_password[MAX_PASSWORD_LENGTH];
 
-    // Citim linie cu linie din fisierul credentials.txt pana la finalul acestuia
     while (fscanf(file, "%s %s", stored_username, stored_password) != EOF) {
-        // Daca numele utilizatorului si parola se potrivesc
         if (strcmp(username, stored_username) == 0 && strcmp(password, stored_password) == 0) {
-            // Inchidem fisierul de credentiale
             printf("Utilizatorul a fost autentificat cu succes!\n");
             fclose(file);
-            return 0; // Si returnam 0 (succes)
+            return 0;
         }
     }
 
-    // In caz ca nu am gasit credentialele in fisier, il inchidem
     fclose(file);
 
-    // Si verificam ce mai exact nu a fost corect / prezent, in primul if vorbim despre ambele credentiale
     if (strcmp(username, stored_username) != 0 && strcmp(password, stored_password) != 0) {
-        return 2; // Returnam 2 daca nici un credential nu este corect
+        return 2;
     } else if (strcmp(username, stored_username) != 0) {
-        return 2; // Returnam 2 daca numele utilizatorului nu este corect
+        return 2;
     } else if (strcmp(password, stored_password) != 0) {
-        return 2; // Returnam 2 daca parola nu este corecta (dar nu afisam acest fapt, pentru privacy)
+        return 2;
     }
 
-    return 1; // Returnam 1 pentru esec
+    return 1;
 }
 
-// Functie pentru crearea unui utilizator nou
 int create_user(char *username, char* password) {
-    // Deschidem fisierul de credentiale pentru salvarea noilor date
     FILE *file = fopen("/tmp/credentials.txt", "r+");
 
-    // Daca fisierul de credentiale nu exista
     if (file == NULL) {
-        // Verificam daca codul de eroare este cel pentru fisier inexistent
         if (errno == ENOENT) {
-            // Cream fisierul prin modul write +
             file = fopen("/tmp/credentials.txt", "w+");
-            // Daca totusi nu putem crea fisierul
             if (file == NULL) {
-                // Afisam o eroare si incheiem executia
                 fprintf(stderr, "Eroare: Nu s-a putut crea fisierul de credentiale");
                 return 1;
             }
         }
-        // Altfel, fisierul exista dar din anumite motive nu il putem deschide (probabil accesul la fisier e interzis) si incheiem execuita cu eroare
         else {
             fprintf(stderr, "Eroare: Nu s-a putut deschide fisierul de credentiale");
             return 1;
         }
     }
 
-    // Definim variabile pentru fiecare credential (nume si parola) deja stocat in fisierul de credentiale
     char stored_username[MAX_USERNAME_LENGTH];
     char stored_password[MAX_PASSWORD_LENGTH];
 
-    // Definim o variabila pentru verificarea daca un utilizator exista sau nu in fisier
     int user_exists = 0;
 
-    // Citim linie cu linie din fisierul credentials.txt pana la finalul acestuia
     while (fscanf(file, "%s %s", stored_username, stored_password) != EOF) {
-        // Daca gasim utilizatorul, tinem minte acest lucru
-            if (strcmp(username, stored_username) == 0) {
-                user_exists = 1;
-                break;
+        if (strcmp(username, stored_username) == 0) {
+            user_exists = 1;
+            break;
         }
     }
 
-    // Daca utilizatorul exista, afisam o eroare
     if (user_exists) {
         fprintf(stderr, "Eroare: Acest utilizator exista deja!\n");
         return 1;
-    } else { // Altfel, il punem in fisierul de credentiale, fiind un utilizator nou
+    } else {
         int valFseek = fseek(file, 0, SEEK_END);
         if (valFseek == 0) {
             fprintf(file, "%s %s\n", username, password);
@@ -149,7 +126,6 @@ int create_user(char *username, char* password) {
         printf("Utilizatorul a fost creat cu succes!\n");
     }
 
-    // Si in final, inchidem fisierul
     fclose(file);
     
     return 0;

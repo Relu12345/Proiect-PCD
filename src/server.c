@@ -23,41 +23,67 @@ void *client_handler(void *arg) {
 
     printf("Client %d connected.\n", id);
 
-    // Definim variabila pentru username (am definit-o aici ca sa o pot utiliza la afisarea user-ului in case 3 din switch-ul urmator)
     char username[100];
-
-    // Definim o variabila pentru parola
     char password[100];
 
-    // Username-ul si parola combinate
+    // User and password combined with a comma ","
     char message[205];
 
-    // Resetam username-ul si parola
+    char char_choice[2];
+
+    // Reseting the variables
     memset(username, 0, sizeof(username));
     memset(password, 0, sizeof(password));
     memset(message, 0, sizeof(message));
+    memset(char_choice, 0, sizeof(char_choice));
+
+    // we get the choice from the client (if they are registering or logging in)
+    recv(client_sock, char_choice, sizeof(char_choice) - 1, 0);
+    char_choice[1] = '\0';
+
+    int choice = atoi(char_choice);
+
+    printf("Choice char: %s\n", char_choice);
 
     // Primim user-ul si parola de la client
     recv(client_sock, message, 205, 0);
     printf("Username and password from client: %s\n", message);
 
-    processClientLogin(message, username, password);
+    processClientInfo(message, username, password);
 
-    printf("Username: %s\nPassword: %s\n", username, password);
-    
-    // Executam functia de login din system3 si verificam daca s-a executat cu succes
-    int loginResult = login(username, password);
-    if (loginResult == 0) {
-        // Logare cu succes, trimitem rezultatul si urmatorul meniu la client
-        send(client_sock, "SUCCESS", 7, 0);
-        printf("Successful login\n");
-    } else {
-        // Logarea a esuat, trimitem rezultatul clientului si ii inchidem conexiunea
-        send(client_sock, "FAIL", 4, 0);
-        printf("Invalid login\n");
-        close(client_sock);
-        free(client_info);
-        pthread_exit(NULL);
+    printf("Username: %s\nPassword: %s\nChoice: %s", username, password, char_choice);
+
+    // 0 means register, 1 means login
+    if (strcmp(char_choice, "0") == 0) {
+        int registerResult = create_user(username, password);
+        if (registerResult == 0) {
+            // Successful register, we send a signal to the client to say this
+            send(client_sock, "SUCCESS", 7, 0);
+            printf("Successful register\n");
+        }
+        else {
+            // Invalid register, we send a signal to the client to say this
+            send(client_sock, "FAIL", 4, 0);
+            printf("Invalid register\n");
+            close(client_sock);
+            free(client_info);
+            pthread_exit(NULL);
+        }
+    }
+    if (strcmp(char_choice, "1") == 0) {
+        int loginResult = login(username, password);
+        if (loginResult == 0) {
+            // Successful login, we send a signal to the client to say this
+            send(client_sock, "SUCCESS", 7, 0);
+            printf("Successful login\n");
+        } else {
+            // Invalid login, we send a signal to the client to say this
+            send(client_sock, "FAIL", 4, 0);
+            printf("Invalid login\n");
+            close(client_sock);
+            free(client_info);
+            pthread_exit(NULL);
+        }
     }
 
     // Receive image data size from client
