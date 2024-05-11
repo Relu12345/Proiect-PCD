@@ -57,9 +57,7 @@
         "thread": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "database.h": "c",
-        "libpq-fe.h": "c",
-        "connection.h": "c",
+        "stdlib.h": "c",
         "login.h": "c"
     }
 }
