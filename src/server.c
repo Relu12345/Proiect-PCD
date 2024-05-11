@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <pthread.h>
+#include <ctype.h>
 #include "connection.h"
 #include "opencv_wrapper.h"
 #include "login.h"
@@ -77,7 +78,7 @@ void *client_handler(void *arg) {
         }
     }
     if (strcmp(char_choice, "1") == 0) {
-        int loginResult = login(conn, username, password);
+        int loginResult = login(username, password);
         if (loginResult == 0) {
             // Successful login, we send a signal to the client to say this
             send(client_sock, "SUCCESS", 7, 0);
