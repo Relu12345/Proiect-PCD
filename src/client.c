@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/un.h>
-#include <string.h>
 #include "connection.h"
 #include "opencv_wrapper.h"
 #include "login.h"
@@ -28,10 +27,6 @@ int main() {
         perror("connection failed");
         exit(EXIT_FAILURE);
     }
-
-    char send_message[MESSAGE_SIZE];
-    char recv_message[MESSAGE_SIZE];
-    size_t len;   
 
     char send_message[MESSAGE_SIZE];
     size_t len;

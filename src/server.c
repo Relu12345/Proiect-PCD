@@ -18,6 +18,12 @@ typedef struct {
 int client_id = 0;
 
 void *client_handler(void *arg) {
+
+    const char *connstring = "host=dpg-cohr28ol5elc73csm2i0-a.frankfurt-postgres.render.com port=5432 dbname=pcd user=pcd_user password=OAGPeU3TKCHQ3hePtl69HSQNb8DiBbls";
+    PGconn *conn = NULL;
+
+    conn = PQconnectdb(connstring);
+
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
@@ -72,7 +78,7 @@ void *client_handler(void *arg) {
         }
     }
     if (strcmp(char_choice, "1") == 0) {
-        int loginResult = login(username, password);
+        int loginResult = login(conn, username, password);
         if (loginResult == 0) {
             // Successful login, we send a signal to the client to say this
             send(client_sock, "SUCCESS", 7, 0);

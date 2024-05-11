@@ -6,6 +6,8 @@
 #include <string.h> // Folosit pentru: strcmp, strcspn 
 #include <errno.h> // Folosit pentru: errno, ENOENT
 #include <sys/wait.h> // Folosit pentru: waitpid, WIFEXITED, WEXITSTATUS
+#include <libpq-fe.h>
+#include "../include/database.h"
 
 #define MAX_COMMAND_LENGTH 100 // Numarul maxim de caractere pentru lungimea unei comenzi
 #define MAX_USERNAME_LENGTH 50 // Numarul maxim de caractere pentru lungimea numelui de utilizator
@@ -50,72 +52,59 @@ void processClientInfo(const char* message, char* username, char* password) {
     }
 }
 
-int login(char *username, char *password) {
-    FILE *file = fopen("/tmp/credentials.txt", "r");
-
-    if (file == NULL) {
-        perror("Eroare");
-        fprintf(stderr, "Probabil nu exista nici un user. Incearca sa creezi un user!\n");
-        return 1;
-    }
-
-    char stored_username[MAX_USERNAME_LENGTH];
-    char stored_password[MAX_PASSWORD_LENGTH];
-
-    while (fscanf(file, "%s %s", stored_username, stored_password) != EOF) {
-        if (strcmp(username, stored_username) == 0 && strcmp(password, stored_password) == 0) {
-            printf("Utilizatorul a fost autentificat cu succes!\n");
-            fclose(file);
-            return 0;
-        }
-    }
-
-    fclose(file);
-
-    if (strcmp(username, stored_username) != 0 && strcmp(password, stored_password) != 0) {
-        return 2;
-    } else if (strcmp(username, stored_username) != 0) {
-        return 2;
-    } else if (strcmp(password, stored_password) != 0) {
-        return 2;
-    }
-
-    return 1;
+// Functia pentru logarea unui utilizator cu parola sa
+int login(PGconn *conn, char *username, char *password) {
+    int returnStatus;
+    login_user(conn, username, password, &returnStatus);
+    return returnStatus;
 }
 
+// Functie pentru crearea unui utilizator nou
 int create_user(char *username, char* password) {
+    // Deschidem fisierul de credentiale pentru salvarea noilor date
     FILE *file = fopen("/tmp/credentials.txt", "r+");
 
+    // Daca fisierul de credentiale nu exista
     if (file == NULL) {
+        // Verificam daca codul de eroare este cel pentru fisier inexistent
         if (errno == ENOENT) {
+            // Cream fisierul prin modul write +
             file = fopen("/tmp/credentials.txt", "w+");
+            // Daca totusi nu putem crea fisierul
             if (file == NULL) {
+                // Afisam o eroare si incheiem executia
                 fprintf(stderr, "Eroare: Nu s-a putut crea fisierul de credentiale");
                 return 1;
             }
         }
+        // Altfel, fisierul exista dar din anumite motive nu il putem deschide (probabil accesul la fisier e interzis) si incheiem execuita cu eroare
         else {
             fprintf(stderr, "Eroare: Nu s-a putut deschide fisierul de credentiale");
             return 1;
         }
     }
 
+    // Definim variabile pentru fiecare credential (nume si parola) deja stocat in fisierul de credentiale
     char stored_username[MAX_USERNAME_LENGTH];
     char stored_password[MAX_PASSWORD_LENGTH];
 
+    // Definim o variabila pentru verificarea daca un utilizator exista sau nu in fisier
     int user_exists = 0;
 
+    // Citim linie cu linie din fisierul credentials.txt pana la finalul acestuia
     while (fscanf(file, "%s %s", stored_username, stored_password) != EOF) {
-        if (strcmp(username, stored_username) == 0) {
-            user_exists = 1;
-            break;
+        // Daca gasim utilizatorul, tinem minte acest lucru
+            if (strcmp(username, stored_username) == 0) {
+                user_exists = 1;
+                break;
         }
     }
 
+    // Daca utilizatorul exista, afisam o eroare
     if (user_exists) {
         fprintf(stderr, "Eroare: Acest utilizator exista deja!\n");
         return 1;
-    } else {
+    } else { // Altfel, il punem in fisierul de credentiale, fiind un utilizator nou
         int valFseek = fseek(file, 0, SEEK_END);
         if (valFseek == 0) {
             fprintf(file, "%s %s\n", username, password);
@@ -126,6 +115,7 @@ int create_user(char *username, char* password) {
         printf("Utilizatorul a fost creat cu succes!\n");
     }
 
+    // Si in final, inchidem fisierul
     fclose(file);
     
     return 0;
