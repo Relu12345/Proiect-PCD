@@ -59,6 +59,10 @@ int login(PGconn *conn, char *username, char *password) {
     return returnStatus;
 }
 
+bool ps_register(PGconn *conn, char *username, char *password) {
+    return register_user(conn, username, password);
+}
+
 // Functie pentru crearea unui utilizator nou
 int create_user(char *username, char* password) {
     // Deschidem fisierul de credentiale pentru salvarea noilor date

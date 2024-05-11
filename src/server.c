@@ -10,6 +10,7 @@
 #include "opencv_wrapper.h"
 #include "login.h"
 
+
 typedef struct {
     int id;
     int sock_fd;
@@ -62,11 +63,22 @@ void *client_handler(void *arg) {
 
     // 0 means register, 1 means login
     if (strcmp(char_choice, "0") == 0) {
-        int registerResult = create_user(username, password);
-        if (registerResult == 0) {
+        int registerResult = ps_register(conn, username, password);
+        if (registerResult == true) {
             // Successful register, we send a signal to the client to say this
-            send(client_sock, "SUCCESS", 7, 0);
-            printf("Successful register\n");
+            int loginResult = login(conn, username, password);
+            if (loginResult == 0) {
+                // Successful login, we send a signal to the client to say this
+                send(client_sock, "SUCCESS", 7, 0);
+                printf("Successful login\n");
+            } else {
+                // Invalid login, we send a signal to the client to say this
+                send(client_sock, "FAIL", 4, 0);
+                printf("Invalid login\n");
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
         }
         else {
             // Invalid register, we send a signal to the client to say this
@@ -77,7 +89,7 @@ void *client_handler(void *arg) {
             pthread_exit(NULL);
         }
     }
-    if (strcmp(char_choice, "1") == 0) {
+    else if (strcmp(char_choice, "1") == 0) {
         int loginResult = login(conn, username, password);
         if (loginResult == 0) {
             // Successful login, we send a signal to the client to say this

@@ -131,12 +131,21 @@ void onMouse(int event, int x, int y, int flags, void* userdata) {
             std::cout << "Enter password: " << std::flush;
         }
         // Check if the mouse click is within the bounds of the login button
-        else if (x >= 150 && x <= 250 && y >= 240 && y <= 280) {
+        else if (x >= 240 && x <= 340 && y >= 240 && y <= 280) {
             std::cout << "Login button pressed." << std::endl;
             std::cout << "Username: " << data->username << std::endl;
             std::cout << "Password: " << data->password << std::endl;
             // Send username and password to client
             sendLoginInfoToServer(1, data->username.c_str(), data->password.c_str());
+            loginWindowVisible = false;
+            cv::destroyWindow("Login Screen");
+        }
+        else if (x >= 50 && x <= 210 && y >= 240 && y <= 280) {
+            std::cout << "Register button pressed." << std::endl;
+            std::cout << "Username: " << data->username << std::endl;
+            std::cout << "Password: " << data->password << std::endl;
+            // Send username and password to client
+            sendLoginInfoToServer(0, data->username.c_str(), data->password.c_str());
             loginWindowVisible = false;
             cv::destroyWindow("Login Screen");
         }
@@ -178,22 +187,7 @@ extern "C" void createLoginScreen() {
     std::string usernameLabel = "Username:";
     std::string passwordLabel = "Password:";
     std::string loginLabel = "Login";
-
-    // Draw labels
-    cv::putText(loginScreen, "Login", cv::Point(180, 50), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
-    cv::putText(loginScreen, usernameLabel, cv::Point(50, 120), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-    cv::putText(loginScreen, passwordLabel, cv::Point(50, 180), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-
-    // Draw input fields with initial text
-    cv::rectangle(loginScreen, cv::Rect(200, 100, 150, 30), cv::Scalar(0, 0, 0), 2);
-    cv::putText(loginScreen, loginData.username, cv::Point(203, 125), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-
-    cv::rectangle(loginScreen, cv::Rect(200, 160, 150, 30), cv::Scalar(0, 0, 0), 2);
-    cv::putText(loginScreen, loginData.password, cv::Point(203, 185), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-
-    // Draw login button
-    cv::rectangle(loginScreen, cv::Rect(150, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
-    cv::putText(loginScreen, loginLabel, cv::Point(180, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+    std::string registerLabel = "Register";
 
     // Enable non-blocking keyboard input
     enableNonBlockingInput();
@@ -228,10 +222,13 @@ extern "C" void createLoginScreen() {
         }
         cv::putText(loginScreen, loginData.password, cv::Point(205, 185), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
 
+        // Draw register button
+        cv::rectangle(loginScreen, cv::Rect(240, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
+        cv::putText(loginScreen, loginLabel, cv::Point(260, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
 
         // Draw login button
-        cv::rectangle(loginScreen, cv::Rect(150, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
-        cv::putText(loginScreen, loginLabel, cv::Point(180, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+        cv::rectangle(loginScreen, cv::Rect(50, 240, 160, 40), cv::Scalar(0, 0, 255), -1);
+        cv::putText(loginScreen, registerLabel, cv::Point(70, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
 
         // Show the updated login screen
         cv::imshow("Login Screen", loginScreen);
