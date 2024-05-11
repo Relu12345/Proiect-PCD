@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <pthread.h>
+#include <ctype.h>
 #include "connection.h"
 #include "opencv_wrapper.h"
 #include "login.h"
