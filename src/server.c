@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include "connection.h"
 #include "opencv_wrapper.h"
+#include "login.h"
 
 typedef struct {
     int id;
@@ -21,6 +22,43 @@ void *client_handler(void *arg) {
     int id = client_info->id;
 
     printf("Client %d connected.\n", id);
+
+    // Definim variabila pentru username (am definit-o aici ca sa o pot utiliza la afisarea user-ului in case 3 din switch-ul urmator)
+    char username[100];
+
+    // Definim o variabila pentru parola
+    char password[100];
+
+    // Username-ul si parola combinate
+    char message[205];
+
+    // Resetam username-ul si parola
+    memset(username, 0, sizeof(username));
+    memset(password, 0, sizeof(password));
+    memset(message, 0, sizeof(message));
+
+    // Primim user-ul si parola de la client
+    recv(client_sock, message, 205, 0);
+    printf("Username and password from client: %s\n", message);
+
+    processClientLogin(message, username, password);
+
+    printf("Username: %s\nPassword: %s\n", username, password);
+    
+    // Executam functia de login din system3 si verificam daca s-a executat cu succes
+    int loginResult = login(username, password);
+    if (loginResult == 0) {
+        // Logare cu succes, trimitem rezultatul si urmatorul meniu la client
+        send(client_sock, "SUCCESS", 7, 0);
+        printf("Successful login\n");
+    } else {
+        // Logarea a esuat, trimitem rezultatul clientului si ii inchidem conexiunea
+        send(client_sock, "FAIL", 4, 0);
+        printf("Invalid login\n");
+        close(client_sock);
+        free(client_info);
+        pthread_exit(NULL);
+    }
 
     // Receive image data size from client
     long dataSize;

@@ -32,8 +32,6 @@ def receive_image(client_socket, width, height):
     grayscale_image = np.frombuffer(data, dtype=np.uint8).reshape((height, width))
     return grayscale_image
 
-
-
 def main():
     root = tk.Tk()
     root.withdraw()  # Hide the main window
@@ -42,6 +40,20 @@ def main():
     try:
         client_socket.connect(SERVER_ADDRESS)
         print("Connected to server.")
+
+        # User authentication
+        username = input("Enter username: ")
+        password = input("Enter password: ")
+        credentials = f"{username},{password}"
+        client_socket.sendall(credentials.encode())
+        
+        # Receive login result
+        login_result = client_socket.recv(1024).decode()
+        if login_result == "FAIL":
+            print("Login failed. Exiting.")
+            return
+        else:
+            print("Login successful. Proceeding.")
 
         file_path = filedialog.askopenfilename(title="Select an image", filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp *.gif")])
         if not file_path:

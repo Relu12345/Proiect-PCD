@@ -7,6 +7,8 @@ extern "C" {
 
 unsigned char* convertBytesToGrayscale(const unsigned char* imageData, long dataSize, int* width, int* height);
 void showImageFromBytes(const unsigned char* data, int width, int height);
+void createLoginScreen();
+void setSocket(int socket);
 
 #ifdef __cplusplus
 }

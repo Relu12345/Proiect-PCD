@@ -28,11 +28,11 @@ project(OpenCV_C_Wrapper)
 find_package(OpenCV 4 REQUIRED)
 
 # Add executable for server
-add_executable(server src/server.c src/opencv_wrapper.cpp)
+add_executable(server src/server.c src/opencv_wrapper.cpp src/login.c)
 target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(server PRIVATE ${OpenCV_LIBS} pthread)
 
 # Add executable for client
-add_executable(client src/client.c src/opencv_wrapper.cpp)
+add_executable(client src/client.c src/opencv_wrapper.cpp src/login.c)
 target_include_directories(client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(client PRIVATE ${OpenCV_LIBS})
