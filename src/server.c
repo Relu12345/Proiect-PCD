@@ -65,8 +65,10 @@ void *client_handler(void *arg) {
     if (strcmp(char_choice, "0") == 0) {
         int registerResult = ps_register(conn, username, password);
         if (registerResult == true) {
+            int loginResult = 1;
             // Successful register, we send a signal to the client to say this
-            int loginResult = login(conn, username, password);
+            struct User user = login(conn, username, password, &loginResult);
+            setDatabase(conn, user);
             if (loginResult == 0) {
                 // Successful login, we send a signal to the client to say this
                 send(client_sock, "SUCCESS", 7, 0);
@@ -90,7 +92,9 @@ void *client_handler(void *arg) {
         }
     }
     else if (strcmp(char_choice, "1") == 0) {
-        int loginResult = login(conn, username, password);
+        int loginResult = 1;
+        struct User user = login(conn, username, password, &loginResult);
+        setDatabase(conn, user);
         if (loginResult == 0) {
             // Successful login, we send a signal to the client to say this
             send(client_sock, "SUCCESS", 7, 0);
