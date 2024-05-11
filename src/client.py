@@ -41,6 +41,9 @@ def main():
         client_socket.connect(SERVER_ADDRESS)
         print("Connected to server.")
 
+        choice = "1"
+        client_socket.sendall(choice.encode())
+
         # User authentication
         username = input("Enter username: ")
         password = input("Enter password: ")
