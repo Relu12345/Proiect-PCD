@@ -232,8 +232,8 @@ bool deletePost(PGconn* conn, int post_id) {
 
 
 //Important! primeste ca ultim parametru return code;
-//0 fail
-//1 succes
+//1 fail
+//0 succes
 struct User login_user(PGconn* conn, const char* username, const char* password, int* returnCode) {
     struct User user;
     const char* params[] =  {username, password};
@@ -244,7 +244,7 @@ struct User login_user(PGconn* conn, const char* username, const char* password,
             fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
         }
         PQclear(res);
-        *returnCode = 0;
+        *returnCode = 1;
         return user;
     }
 
@@ -257,7 +257,7 @@ struct User login_user(PGconn* conn, const char* username, const char* password,
     user.id = atoi(PQgetvalue(res, 0, 0));
     user.name = strdup(PQgetvalue(res, 0, 1));
 
-    *returnCode = 1;
+    *returnCode = 0;
     PQclear(res);
     return user;
 }
@@ -279,49 +279,10 @@ void* allocate_memory(size_t size) {
 }
 
 
+int main(int argc, char* argv[]) {
+  // Your server code goes here
+  printf("Server started!\n");
+  // ...
 
-int main() {
-    const char *connstring = "host=dpg-cohr28ol5elc73csm2i0-a.frankfurt-postgres.render.com port=5432 dbname=pcd user=pcd_user password=OAGPeU3TKCHQ3hePtl69HSQNb8DiBbls";
-    PGconn *conn = NULL;
-
-    conn = PQconnectdb(connstring);
-
-//    FILE* image_file = fopen("image.jpg", "rb");
-//    if (image_file == NULL) {
-//        return handle_error("Failed to open image file");
-//    }
-//
-//
-//    fseek(image_file, 0, SEEK_END);
-//    long file_size = ftell(image_file);
-//    (image_file, 0, SEEK_SET);
-//    void* image_data = allocate_memory(file_size);
-//    if (image_data == NULL) {
-//        fclose(image_file);
-//        return 1;
-//    }
-//
-//    size_t bytes_read = fread(image_data, 1, file_size, image_file);
-//    if (bytes_read != file_size) {
-//        handle_error("Failed to read entire image file");
-//        free(image_data);
-//        fclose(image_file);
-//        return 1;
-//    }
-//
-//
-//    if (PQstatus(conn) == CONNECTION_BAD) {
-//        fprintf(stderr, "Connection to database failed: %s\n", PQerrorMessage(conn));
-//        PQfinish(conn);
-//        exit(1);
-//    }
-
-//    get_all_posts(conn, 0);
-
-    printf("Connected to database!\n");
-
-    PQfinish(conn);
-    printf("Disconnected from database.\n");
-
-    return 0;
+  return 0;
 }

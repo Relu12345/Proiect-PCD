@@ -8,6 +8,7 @@
 #include "connection.h"
 #include "opencv_wrapper.h"
 #include "login.h"
+#include <libpq-fe.h>
 
 typedef struct {
     int id;
@@ -20,6 +21,11 @@ void *client_handler(void *arg) {
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
+
+    const char *connstring = "host=dpg-cohr28ol5elc73csm2i0-a.frankfurt-postgres.render.com port=5432 dbname=pcd user=pcd_user password=OAGPeU3TKCHQ3hePtl69HSQNb8DiBbls";
+    PGconn *conn = NULL;
+
+    conn = PQconnectdb(connstring);
 
     printf("Client %d connected.\n", id);
 
@@ -44,9 +50,9 @@ void *client_handler(void *arg) {
     processClientLogin(message, username, password);
 
     printf("Username: %s\nPassword: %s\n", username, password);
-    
+
     // Executam functia de login din system3 si verificam daca s-a executat cu succes
-    int loginResult = login(username, password);
+    int loginResult = login(conn, username, password);
     if (loginResult == 0) {
         // Logare cu succes, trimitem rezultatul si urmatorul meniu la client
         send(client_sock, "SUCCESS", 7, 0);

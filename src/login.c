@@ -6,6 +6,7 @@
 #include <string.h> // Folosit pentru: strcmp, strcspn 
 #include <errno.h> // Folosit pentru: errno, ENOENT
 #include <sys/wait.h> // Folosit pentru: waitpid, WIFEXITED, WEXITSTATUS
+#include "../include/database.h"
 
 #define MAX_COMMAND_LENGTH 100 // Numarul maxim de caractere pentru lungimea unei comenzi
 #define MAX_USERNAME_LENGTH 50 // Numarul maxim de caractere pentru lungimea numelui de utilizator
@@ -51,46 +52,11 @@ void processClientLogin(const char* message, char* username, char* password) {
 }
 
 // Functia pentru logarea unui utilizator cu parola sa
-int login(char *username, char *password) {
-    // Deschidem fisierul unde sunt stocate credentialele
-    FILE *file = fopen("/tmp/credentials.txt", "r");
-
-    // Daca acesta nu exista
-    if (file == NULL) {
-        // Afisam o eroare
-        perror("Eroare");
-        fprintf(stderr, "Probabil nu exista nici un user. Incearca sa creezi un user!\n");
-        return 1; // Returnam 1 cand gasim o problema
-    }
-
-    // Definim variabile pentru fiecare credential (nume si parola) deja stocat in fisierul de credentiale
-    char stored_username[MAX_USERNAME_LENGTH];
-    char stored_password[MAX_PASSWORD_LENGTH];
-
-    // Citim linie cu linie din fisierul credentials.txt pana la finalul acestuia
-    while (fscanf(file, "%s %s", stored_username, stored_password) != EOF) {
-        // Daca numele utilizatorului si parola se potrivesc
-        if (strcmp(username, stored_username) == 0 && strcmp(password, stored_password) == 0) {
-            // Inchidem fisierul de credentiale
-            printf("Utilizatorul a fost autentificat cu succes!\n");
-            fclose(file);
-            return 0; // Si returnam 0 (succes)
-        }
-    }
-
-    // In caz ca nu am gasit credentialele in fisier, il inchidem
-    fclose(file);
-
-    // Si verificam ce mai exact nu a fost corect / prezent, in primul if vorbim despre ambele credentiale
-    if (strcmp(username, stored_username) != 0 && strcmp(password, stored_password) != 0) {
-        return 2; // Returnam 2 daca nici un credential nu este corect
-    } else if (strcmp(username, stored_username) != 0) {
-        return 2; // Returnam 2 daca numele utilizatorului nu este corect
-    } else if (strcmp(password, stored_password) != 0) {
-        return 2; // Returnam 2 daca parola nu este corecta (dar nu afisam acest fapt, pentru privacy)
-    }
-
-    return 1; // Returnam 1 pentru esec
+int login(PGconn* conn, char *username, char *password) {
+    int status;
+    struct User user;
+    user = login_user(conn, username, password, &status);
+    return status; // Returnam 1 pentru esec
 }
 
 // Functie pentru crearea unui utilizator nou
