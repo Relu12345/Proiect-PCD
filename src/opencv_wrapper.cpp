@@ -189,22 +189,6 @@ extern "C" void createLoginScreen() {
     std::string loginLabel = "Login";
     std::string registerLabel = "Register";
 
-    // // Draw labels
-    // cv::putText(loginScreen, "Login", cv::Point(180, 50), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
-    // cv::putText(loginScreen, usernameLabel, cv::Point(50, 120), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-    // cv::putText(loginScreen, passwordLabel, cv::Point(50, 180), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-
-    // // Draw input fields with initial text
-    // cv::rectangle(loginScreen, cv::Rect(200, 100, 150, 30), cv::Scalar(0, 0, 0), 2);
-    // cv::putText(loginScreen, loginData.username, cv::Point(203, 125), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-
-    // cv::rectangle(loginScreen, cv::Rect(200, 160, 150, 30), cv::Scalar(0, 0, 0), 2);
-    // cv::putText(loginScreen, loginData.password, cv::Point(203, 185), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
-
-    // // Draw login button
-    // cv::rectangle(loginScreen, cv::Rect(150, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
-    // cv::putText(loginScreen, loginLabel, cv::Point(180, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
-
     // Enable non-blocking keyboard input
     enableNonBlockingInput();
 
