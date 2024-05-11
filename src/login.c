@@ -6,6 +6,7 @@
 #include <string.h> // Folosit pentru: strcmp, strcspn 
 #include <errno.h> // Folosit pentru: errno, ENOENT
 #include <sys/wait.h> // Folosit pentru: waitpid, WIFEXITED, WEXITSTATUS
+#include <libpq-fe.h>
 #include "../include/database.h"
 
 #define MAX_COMMAND_LENGTH 100 // Numarul maxim de caractere pentru lungimea unei comenzi
@@ -36,7 +37,7 @@ void enableEcho() {
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 }
 
-void processClientLogin(const char* message, char* username, char* password) {
+void processClientInfo(const char* message, char* username, char* password) {
     // Tokenize the message based on the delimiter
     char* token = strtok((char*)message, ",");
     if (token != NULL) {
@@ -52,11 +53,10 @@ void processClientLogin(const char* message, char* username, char* password) {
 }
 
 // Functia pentru logarea unui utilizator cu parola sa
-int login(PGconn* conn, char *username, char *password) {
-    int status;
-    struct User user;
-    user = login_user(conn, username, password, &status);
-    return status; // Returnam 1 pentru esec
+int login(PGconn *conn, char *username, char *password) {
+    int returnStatus;
+    login_user(conn, username, password, &returnStatus);
+    return returnStatus;
 }
 
 // Functie pentru crearea unui utilizator nou

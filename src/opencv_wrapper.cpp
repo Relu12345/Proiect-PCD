@@ -65,9 +65,21 @@ std::atomic<bool> loginWindowVisible(true);
 int serverSock;
 
 // Function to send message to client
-void sendMessageToServer(const char* user, const char* pass) {
+void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
     // Create a buffer to hold the combined message
-    char combinedMessage[256]; // Adjust the buffer size as needed
+    char combinedMessage[205];
+    char char_choice[2];
+
+    memset(combinedMessage, 0, sizeof(combinedMessage));
+    memset(char_choice, 0, sizeof(char_choice));
+
+    sprintf(char_choice, "%d", choice);
+
+    // Send choice to server
+    if (send(serverSock, char_choice, strlen(char_choice), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
 
     // Concatenate the username and password with a delimiter
     snprintf(combinedMessage, sizeof(combinedMessage), "%s,%s", user, pass);
@@ -124,7 +136,7 @@ void onMouse(int event, int x, int y, int flags, void* userdata) {
             std::cout << "Username: " << data->username << std::endl;
             std::cout << "Password: " << data->password << std::endl;
             // Send username and password to client
-            sendMessageToServer(data->username.c_str(), data->password.c_str());
+            sendLoginInfoToServer(1, data->username.c_str(), data->password.c_str());
             loginWindowVisible = false;
             cv::destroyWindow("Login Screen");
         }
