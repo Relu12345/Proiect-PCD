@@ -66,9 +66,7 @@ std::atomic<bool> mainWindowVisible(true);
 
 // Global variable to hold the client socket
 int serverSock;
-
-PGconn *connection;
-User user;
+Post* posts = nullptr;
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -266,15 +264,15 @@ extern "C" void createLoginScreen() {
     disableNonBlockingInput();
 }
 
-extern "C" void mainScreen () {
+extern "C" void mainScreen() {
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
     cv::imshow("Main Screen", mainScreen);
-    Post* posts = new Post;
-    posts = get_all_posts(connection, user.id);
+    
     while (mainWindowVisible) {
         // nothing yet
-        std::cout << "User: " << user.name << std::endl;
+        std::cout << "rando id: " << posts[0].id << std::endl;
+        mainWindowVisible = false;
     }
 }
 
@@ -282,7 +280,6 @@ extern "C" void setSocket(int socket) {
     serverSock = socket;
 }
 
-extern "C" void setDatabase (PGconn *conn, struct User user) {
-    connection = conn;
-    user = user;
+extern "C" void setPosts(Post* dbPosts) {
+    posts = dbPosts;
 }

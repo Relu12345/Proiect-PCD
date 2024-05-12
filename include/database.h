@@ -9,6 +9,14 @@
 
 #define MAX_USERS 100
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+struct Post* get_all_posts(PGconn* conn, int userId);
+#ifdef __cplusplus
+}
+#endif
+
 struct User {
     int id;
     char* name;
@@ -24,7 +32,7 @@ struct Post {
     bool liked;
 };
 
-struct Post* get_all_posts(PGconn* conn, int userId);
+int get_posts_counts(PGconn* conn);
 
 struct Post* get_all_user_posts(PGconn* conn, int userId);
 

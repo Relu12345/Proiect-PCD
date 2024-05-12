@@ -47,6 +47,27 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    // Receive the number of posts
+    int num_received_posts;
+    recv(server_sock, &num_received_posts, sizeof(int), 0);
+
+    // Allocate memory to hold the received posts
+    struct Post* posts = malloc(sizeof(struct Post) * num_received_posts);
+    if (posts == NULL) {
+        perror("Memory error");
+        close(server_sock);
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive and print each post
+    for (int i = 0; i < num_received_posts; i++) {
+        recv(server_sock, &posts[i], sizeof(struct Post), 0);
+    }
+
+    setPosts(posts);
+
+    mainScreen();
+
     // Prompt user to enter image path
     printf("Enter image path: ");
     if (fgets(send_message, sizeof(send_message), stdin) == NULL) {

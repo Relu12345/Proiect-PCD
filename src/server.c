@@ -61,6 +61,8 @@ void *client_handler(void *arg) {
 
     printf("Username: %s\nPassword: %s\nChoice: %s", username, password, char_choice);
 
+    struct Post* posts = NULL;
+
     // 0 means register, 1 means login
     if (strcmp(char_choice, "0") == 0) {
         int registerResult = ps_register(conn, username, password);
@@ -68,7 +70,8 @@ void *client_handler(void *arg) {
             int loginResult = 1;
             // Successful register, we send a signal to the client to say this
             struct User user = login(conn, username, password, &loginResult);
-            setDatabase(conn, user);
+            printf("In server: username: %s\nuser id: %d\n", user.name, user.id);
+            //setDatabase(conn, user.name, user.id);
             if (loginResult == 0) {
                 // Successful login, we send a signal to the client to say this
                 send(client_sock, "SUCCESS", 7, 0);
@@ -94,7 +97,8 @@ void *client_handler(void *arg) {
     else if (strcmp(char_choice, "1") == 0) {
         int loginResult = 1;
         struct User user = login(conn, username, password, &loginResult);
-        setDatabase(conn, user);
+        printf("Value of conn before calling setDatabase: %p\n", conn);
+        posts = get_all_posts(conn, user.id);
         if (loginResult == 0) {
             // Successful login, we send a signal to the client to say this
             send(client_sock, "SUCCESS", 7, 0);
@@ -108,6 +112,23 @@ void *client_handler(void *arg) {
             pthread_exit(NULL);
         }
     }
+
+    // Get the number of posts
+    int num_posts = get_posts_counts(conn);
+
+    // Send the number of posts
+    send(client_sock, &num_posts, sizeof(int), 0);
+
+    // Iterate through the posts and send each post individually
+    struct Post* current_post = posts;
+    for (int i = 0; i < num_posts; i++) {
+        send(client_sock, current_post, sizeof(struct Post), 0);
+        current_post++;
+    }
+
+    // After all posts are sent, send a NULL pointer to indicate the end
+    int end_marker = -1;
+    send(client_sock, &end_marker, sizeof(int), 0);
 
     // Receive image data size from client
     long dataSize;

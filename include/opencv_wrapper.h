@@ -13,7 +13,7 @@ void showImageFromBytes(const unsigned char* data, int width, int height);
 void createLoginScreen();
 void setSocket(int socket);
 void mainScreen ();
-void setDatabase (PGconn *conn, struct User user);
+void setPosts(struct Post *dbPosts);
 
 #ifdef __cplusplus
 }
