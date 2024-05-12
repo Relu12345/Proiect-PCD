@@ -75,7 +75,9 @@ std::atomic<bool> image_uploaded(false);
 
 // Global variable to hold the client socket
 int serverSock;
+int postCount;
 Post* posts = nullptr;
+User user;
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -315,25 +317,35 @@ extern "C" void createPostScreen () {
     cv::imshow("Post Screen", postScreen);
     cv::setMouseCallback("Post Screen", postOnMouse, &postData);
 
+    int leftSectionWidth = 600;
+    cv::Rect leftSectionRect(0, 0, leftSectionWidth, postScreen.rows);
+
+    if (!image_uploaded) {
+        std::string uploadText = "Upload an image:";
+        cv::Size textSize = cv::getTextSize(uploadText, cv::FONT_HERSHEY_SIMPLEX, 1.5, 2, nullptr);
+        cv::putText(postScreen, uploadText, cv::Point((leftSectionRect.width - textSize.width) / 2, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+
+        // Draw the button
+        int buttonWidth = 100;
+        int buttonHeight = 40;
+        int buttonX = (leftSectionRect.width - buttonWidth) / 2;
+        int buttonY = 300;
+        cv::rectangle(postScreen(leftSectionRect), cv::Rect(buttonX, buttonY, buttonWidth, buttonHeight), cv::Scalar(255, 0, 0), -1);
+        cv::putText(postScreen, "Upload", cv::Point(buttonX + 10, buttonY + 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+    }
+
     while(postWindowVisible) {
-        postScreen = cv::Scalar(255, 255, 255);
-        if (!image_uploaded) {
-            cv::putText(postScreen, "Please write image path:", cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
-            cv::rectangle(postScreen, cv::Rect(300, 300, 100, 40), cv::Scalar(255, 0, 0), -1);
-            cv::putText(postScreen, "Upload", cv::Point(320, 330), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
-        }
-        else {
+        int rightSectionWidth = postScreen.cols - leftSectionWidth;
+        cv::Rect rightSectionRect(leftSectionWidth, 0, rightSectionWidth, postScreen.rows);
+        
+        if (image_uploaded) {
             cv::Mat image = cv::imread(postData.imagePath);
+            if(!image.empty()) {
+                cv::resize(image, image, cv::Size(rightSectionRect.width, rightSectionRect.height));
 
-            // Calculate the position to place the image on the top center of testScreen
-            int posX = (postScreen.cols - image.cols) / 2;
-            int posY = 0; // Top position
-
-            // Define the region of interest (ROI) on the testScreen
-            cv::Rect roi(posX, posY, image.cols, image.rows);
-
-            // Overlay the image on the testScreen at the calculated position
-            image.copyTo(postScreen(roi));
+                // Copy the image to the right section
+                image.copyTo(postScreen(rightSectionRect));
+            }
         }
         // Show the updated login screen
         cv::imshow("Post Screen", postScreen);
@@ -348,6 +360,12 @@ extern "C" void setSocket(int socket) {
     serverSock = socket;
 }
 
-extern "C" void setPosts(Post* dbPosts) {
+extern "C" void setUser(int id, const char* name) {
+    user.id = id;
+    strcpy(user.name, name);
+}
+
+extern "C" void setPosts(Post* dbPosts, int count) {
     posts = dbPosts;
+    postCount = count;
 }

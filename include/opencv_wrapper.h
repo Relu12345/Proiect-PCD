@@ -14,7 +14,8 @@ void createLoginScreen();
 void createPostScreen();
 void setSocket(int socket);
 void mainScreen ();
-void setPosts(struct Post *dbPosts);
+void setUser(int id, const char* name);
+void setPosts(struct Post* dbPosts, int count);
 
 #ifdef __cplusplus
 }

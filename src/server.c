@@ -51,17 +51,13 @@ void *client_handler(void *arg) {
 
     int choice = atoi(char_choice);
 
-    printf("Choice char: %s\n", char_choice);
-
     // Primim user-ul si parola de la client
     recv(client_sock, message, 205, 0);
-    printf("Username and password from client: %s\n", message);
 
     processClientInfo(message, username, password);
 
-    printf("Username: %s\nPassword: %s\nChoice: %s", username, password, char_choice);
-
     struct Post* posts = NULL;
+    struct User user;
 
     // 0 means register, 1 means login
     if (strcmp(char_choice, "0") == 0) {
@@ -69,8 +65,7 @@ void *client_handler(void *arg) {
         if (registerResult == true) {
             int loginResult = 1;
             // Successful register, we send a signal to the client to say this
-            struct User user = login(conn, username, password, &loginResult);
-            printf("In server: username: %s\nuser id: %d\n", user.name, user.id);
+            user = login(conn, username, password, &loginResult);
             //setDatabase(conn, user.name, user.id);
             if (loginResult == 0) {
                 // Successful login, we send a signal to the client to say this
@@ -96,8 +91,7 @@ void *client_handler(void *arg) {
     }
     else if (strcmp(char_choice, "1") == 0) {
         int loginResult = 1;
-        struct User user = login(conn, username, password, &loginResult);
-        printf("Value of conn before calling setDatabase: %p\n", conn);
+        user = login(conn, username, password, &loginResult);
         posts = get_all_posts(conn, user.id);
         if (loginResult == 0) {
             // Successful login, we send a signal to the client to say this
@@ -113,6 +107,12 @@ void *client_handler(void *arg) {
         }
     }
 
+    // Send user id to client
+    send(client_sock, &user.id, sizeof(user.id), 0);
+
+    // Send user name to client
+    send(client_sock, user.name, sizeof(user.name), 0);
+
     // Get the number of posts
     int num_posts = get_posts_counts(conn);
 
@@ -122,7 +122,16 @@ void *client_handler(void *arg) {
     // Iterate through the posts and send each post individually
     struct Post* current_post = posts;
     for (int i = 0; i < num_posts; i++) {
-        send(client_sock, current_post, sizeof(struct Post), 0);
+        send(client_sock, &(current_post->id), sizeof(int), 0);
+        send(client_sock, &(current_post->userId), sizeof(int), 0);
+        int description_length = strlen(current_post->description) + 1; // Include null terminator
+        send(client_sock, &description_length, sizeof(int), 0);
+        send(client_sock, current_post->description, description_length, 0);
+        int username_length = strlen(current_post->userName) + 1; // Include null terminator
+        send(client_sock, &username_length, sizeof(int), 0);
+        send(client_sock, current_post->userName, username_length, 0);
+        send(client_sock, &(current_post->likeCount), sizeof(int), 0);
+        send(client_sock, &(current_post->liked), sizeof(int), 0);
         current_post++;
     }
 

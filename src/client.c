@@ -47,6 +47,15 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    int id;
+    char name[100];
+
+    // Receive user id from server
+    recv(server_sock, &id, sizeof(id), 0);
+
+    // Receive user name from server
+    recv(server_sock, name, sizeof(name), 0);
+
     // Receive the number of posts
     int num_received_posts;
     recv(server_sock, &num_received_posts, sizeof(int), 0);
@@ -61,10 +70,22 @@ int main() {
 
     // Receive and print each post
     for (int i = 0; i < num_received_posts; i++) {
-        recv(server_sock, &posts[i], sizeof(struct Post), 0);
+        recv(server_sock, &(posts[i].id), sizeof(int), 0);
+        recv(server_sock, &(posts[i].userId), sizeof(int), 0);
+        int description_length;
+        recv(server_sock, &description_length, sizeof(int), 0);
+        posts[i].description = malloc(description_length);
+        recv(server_sock, posts[i].description, description_length, 0);
+        int username_length;
+        recv(server_sock, &username_length, sizeof(int), 0);
+        posts[i].userName = malloc(username_length);
+        recv(server_sock, posts[i].userName, username_length, 0);
+        recv(server_sock, &(posts[i].likeCount), sizeof(int), 0);
+        recv(server_sock, &(posts[i].liked), sizeof(int), 0);
     }
 
-    setPosts(posts);
+    setUser(id, name);
+    setPosts(posts, num_received_posts);
 
     mainScreen();
 
