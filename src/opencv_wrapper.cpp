@@ -49,6 +49,10 @@ extern "C" void showImageFromBytes(const unsigned char* data, int width, int hei
     cv::destroyAllWindows();
 }
 
+struct PostData {
+    std::string imagePath;
+} postData;
+
 struct LoginData {
     std::string username;
     std::string password;
@@ -63,6 +67,11 @@ LoginData loginData;
 std::atomic<bool> loginWindowVisible(true);
 
 std::atomic<bool> mainWindowVisible(true);
+
+std::atomic<bool> postWindowVisible(true);
+
+std::atomic<bool> image_uploaded(false);
+
 
 // Global variable to hold the client socket
 int serverSock;
@@ -152,6 +161,29 @@ void onMouse(int event, int x, int y, int flags, void* userdata) {
             sendLoginInfoToServer(0, data->username.c_str(), data->password.c_str());
             loginWindowVisible = false;
             cv::destroyWindow("Login Screen");
+        }
+    }
+}
+
+void postOnMouse(int event, int x, int y, int flags, void* userdata) {
+    if (event == cv::EVENT_LBUTTONDOWN) {
+        PostData* data = (PostData*)userdata;
+        if (x >= 300 && x <= 400 && y >= 300 && y <= 340) {
+            FILE *in;
+            if (!(in = popen("zenity  --title=\"Select an image\" --file-selection","r"))) {
+                perror("popen error");
+            }
+
+            char buff[512];
+            std::string selectFile = "";
+            while (fgets(buff, sizeof(buff), in) != NULL) {
+                selectFile += buff;
+            }
+            pclose(in);
+
+            selectFile.erase(std::remove(selectFile.begin(), selectFile.end(), '\n'), selectFile.end());
+            data->imagePath = selectFile;
+            image_uploaded = true;
         }
     }
 }
@@ -274,6 +306,42 @@ extern "C" void mainScreen() {
         std::cout << "rando id: " << posts[0].id << std::endl;
         mainWindowVisible = false;
     }
+}
+
+extern "C" void createPostScreen () {
+    cv::Mat postScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
+    cv::namedWindow("Post Screen");
+    enableNonBlockingInput();
+    cv::imshow("Post Screen", postScreen);
+    cv::setMouseCallback("Post Screen", postOnMouse, &postData);
+
+    while(postWindowVisible) {
+        postScreen = cv::Scalar(255, 255, 255);
+        if (!image_uploaded) {
+            cv::putText(postScreen, "Please write image path:", cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+            cv::rectangle(postScreen, cv::Rect(300, 300, 100, 40), cv::Scalar(255, 0, 0), -1);
+            cv::putText(postScreen, "Upload", cv::Point(320, 330), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+        }
+        else {
+            cv::Mat image = cv::imread(postData.imagePath);
+
+            // Calculate the position to place the image on the top center of testScreen
+            int posX = (postScreen.cols - image.cols) / 2;
+            int posY = 0; // Top position
+
+            // Define the region of interest (ROI) on the testScreen
+            cv::Rect roi(posX, posY, image.cols, image.rows);
+
+            // Overlay the image on the testScreen at the calculated position
+            image.copyTo(postScreen(roi));
+        }
+        // Show the updated login screen
+        cv::imshow("Post Screen", postScreen);
+        
+        char key = cv::waitKey(10);
+    }
+
+    disableNonBlockingInput();
 }
 
 extern "C" void setSocket(int socket) {
