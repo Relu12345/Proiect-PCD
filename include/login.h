@@ -1,12 +1,13 @@
 #include <libpq-fe.h>
 #include <stdbool.h>
+#include "database.h"
 
 #ifndef LOGIN_H
 #define LOGIN_H
 
 void disableEcho();
 void enableEcho();
-int login(PGconn *conn, char *username, char *password);
+struct User login(PGconn *conn, char *username, char *password, int *returnStatus);
 bool ps_register(PGconn *conn, char *username, char *password);
 int create_user(char *username, char *password);
 void processClientInfo(const char* message, char* username, char* password);

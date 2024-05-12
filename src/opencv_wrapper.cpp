@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <cstdio>
 #include <atomic>
+#include "database.h"
 
 extern "C" unsigned char* convertBytesToGrayscale(const unsigned char* imageData, long dataSize, int* width, int* height) {
     // Decode the image bytes
@@ -61,8 +62,11 @@ LoginData loginData;
 
 std::atomic<bool> loginWindowVisible(true);
 
+std::atomic<bool> mainWindowVisible(true);
+
 // Global variable to hold the client socket
 int serverSock;
+Post* posts = nullptr;
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -260,7 +264,22 @@ extern "C" void createLoginScreen() {
     disableNonBlockingInput();
 }
 
+extern "C" void mainScreen() {
+    cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
+    cv::namedWindow("Main Screen");
+    cv::imshow("Main Screen", mainScreen);
+    
+    while (mainWindowVisible) {
+        // nothing yet
+        std::cout << "rando id: " << posts[0].id << std::endl;
+        mainWindowVisible = false;
+    }
+}
 
 extern "C" void setSocket(int socket) {
     serverSock = socket;
+}
+
+extern "C" void setPosts(Post* dbPosts) {
+    posts = dbPosts;
 }

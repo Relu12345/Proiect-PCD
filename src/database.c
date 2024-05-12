@@ -21,6 +21,28 @@ struct Post {
     bool liked;
 };
 
+int get_posts_counts(PGconn* conn) {
+    int count = 0;
+
+    char query[100]; 
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM post");
+
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+
+    if (PQntuples(res) > 0) {
+        count = atoi(PQgetvalue(res, 0, 0));
+    }
+
+    PQclear(res);
+    return count;
+}
+
 //pt admin, returneaza lista de useri
 struct Post* get_all_posts(PGconn* conn, int userId) {
     int buffer_len = snprintf(NULL, 0, "SELECT p.*, u.name, COALESCE(COUNT(ulp.id), 0) AS like_count,\n"

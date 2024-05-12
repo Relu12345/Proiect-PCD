@@ -53,10 +53,9 @@ void processClientInfo(const char* message, char* username, char* password) {
 }
 
 // Functia pentru logarea unui utilizator cu parola sa
-int login(PGconn *conn, char *username, char *password) {
-    int returnStatus;
-    login_user(conn, username, password, &returnStatus);
-    return returnStatus;
+struct User login(PGconn *conn, char *username, char *password, int *returnStatus) {
+    struct User usr = login_user(conn, username, password, returnStatus);
+    return usr;
 }
 
 bool ps_register(PGconn *conn, char *username, char *password) {
