@@ -119,11 +119,23 @@ void *client_handler(void *arg) {
     // Send the number of posts
     send(client_sock, &num_posts, sizeof(int), 0);
 
-    // Iterate through the posts and send each post individually
+    size_t *imageSizes = malloc(sizeof(size_t) * num_posts);
     struct Post* current_post = posts;
+    for (int i = 0; i < num_posts; i++) {
+        imageSizes[i] = strlen(current_post->image) + 1;
+        current_post++;
+    }
+
+    send(client_sock, imageSizes, sizeof(size_t) * num_posts, 0);
+
+    current_post = posts;
+    // Iterate through the posts and send each post individually
     for (int i = 0; i < num_posts; i++) {
         send(client_sock, &(current_post->id), sizeof(int), 0);
         send(client_sock, &(current_post->userId), sizeof(int), 0);
+        size_t imageSize = strlen(current_post->image) + 1;
+        send(client_sock, &imageSize, sizeof(size_t), 0);
+        send(client_sock, current_post->image, imageSize, 0);
         int description_length = strlen(current_post->description) + 1; // Include null terminator
         send(client_sock, &description_length, sizeof(int), 0);
         send(client_sock, current_post->description, description_length, 0);

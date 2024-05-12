@@ -4,12 +4,14 @@
 #include "../../../../../../usr/include/x86_64-linux-gnu/sys/socket.h"
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 #include <sys/un.h>
 #include <termios.h>
 #include <fcntl.h>
 #include <cstdio>
 #include <atomic>
+#include <vector>
 #include "database.h"
 
 extern "C" unsigned char* convertBytesToGrayscale(const unsigned char* imageData, long dataSize, int* width, int* height) {
@@ -78,6 +80,7 @@ int serverSock;
 int postCount;
 Post* posts = nullptr;
 User user;
+size_t *sizes = nullptr;
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -304,6 +307,13 @@ extern "C" void createLoginScreen() {
     disableNonBlockingInput();
 }
 
+typedef unsigned char uchar;
+
+std::vector<uchar> convertToVector(const uchar* data, size_t size) {
+    // Initialize vector with data from the array
+    return std::vector<uchar>(data, data + size);
+}
+
 extern "C" void mainScreen() {
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
@@ -318,6 +328,7 @@ extern "C" void mainScreen() {
         // Username
         
         cv::putText(mainScreen, std::to_string(posts[0].id), cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+        std::vector<uchar> imageVector = convertToVector(posts[0].image, sizes[0]);
         cv::Mat img = cv::Mat(400, 300, CV_8UC3, (void*)posts[0].image);
         cv::Rect imageRect((mainScreen.cols - img.cols) / 2, 50, img.cols, img.rows);
         img.copyTo(mainScreen(imageRect));
@@ -401,7 +412,8 @@ extern "C" void setUser(int id, const char* name) {
     strcpy(user.name, name);
 }
 
-extern "C" void setPosts(Post* dbPosts, int count) {
+extern "C" void setPosts(Post* dbPosts, int count, size_t *imageSizes) {
     posts = dbPosts;
     postCount = count;
+    sizes = imageSizes;
 }

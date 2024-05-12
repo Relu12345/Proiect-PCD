@@ -68,10 +68,21 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    size_t *imageSizes = malloc(sizeof(size_t) * num_received_posts);
+    recv(server_sock, imageSizes, sizeof(size_t) * num_received_posts, 0);
+
     // Receive and print each post
     for (int i = 0; i < num_received_posts; i++) {
         recv(server_sock, &(posts[i].id), sizeof(int), 0);
         recv(server_sock, &(posts[i].userId), sizeof(int), 0);
+        size_t imageSize;
+        recv(server_sock, &imageSize, sizeof(size_t), 0);
+        posts[i].image = malloc(imageSize);
+        if (posts[i].image == NULL) {
+            perror("Memory allocation failed for image data");
+            exit(EXIT_FAILURE);
+        }
+        recv(server_sock, posts[i].image, imageSize, 0);
         int description_length;
         recv(server_sock, &description_length, sizeof(int), 0);
         posts[i].description = malloc(description_length);
@@ -85,7 +96,7 @@ int main() {
     }
 
     setUser(id, name);
-    setPosts(posts, num_received_posts);
+    setPosts(posts, num_received_posts, imageSizes);
 
     mainScreen();
 
