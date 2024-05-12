@@ -167,6 +167,12 @@ void onMouse(int event, int x, int y, int flags, void* userdata) {
     }
 }
 
+// void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
+//     if (event == cv::EVENT_LBUTTONDOWN) {
+
+//     }
+// }
+
 void postOnMouse(int event, int x, int y, int flags, void* userdata) {
     if (event == cv::EVENT_LBUTTONDOWN) {
         PostData* data = (PostData*)userdata;
@@ -302,11 +308,41 @@ extern "C" void mainScreen() {
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
     cv::imshow("Main Screen", mainScreen);
+    // cv::setMouseCallback("Main Screen", mainOnMouse, &posts);
+
     
     while (mainWindowVisible) {
+        mainScreen = cv::Scalar(255, 255, 255);
         // nothing yet
         std::cout << "rando id: " << posts[0].id << std::endl;
-        mainWindowVisible = false;
+        // Username
+        
+        cv::putText(mainScreen, std::to_string(posts[0].id), cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+        cv::Mat img = cv::Mat(400, 300, CV_8UC3, (void*)posts[0].image);
+        cv::Rect imageRect((mainScreen.cols - img.cols) / 2, 50, img.cols, img.rows);
+        img.copyTo(mainScreen(imageRect));
+
+        // Buttons
+        cv::Rect leftButtonRect(150, 400, 100, 50);
+        cv::rectangle(mainScreen, leftButtonRect, cv::Scalar(0, 0, 255), -1);
+        cv::Rect rightButtonRect(950, 400, 100, 50);
+        cv::rectangle(mainScreen, rightButtonRect, cv::Scalar(255, 0, 0), -1);
+
+        cv::Rect upperLeftArrowRect(50, 200, 50, 50);
+        cv::rectangle(mainScreen, upperLeftArrowRect, cv::Scalar(0, 0, 0), -1);
+        cv::Rect upperRightArrowRect(1150, 200, 50, 50);
+        cv::rectangle(mainScreen, upperRightArrowRect, cv::Scalar(0, 0, 0), -1);
+
+        cv::Rect makePostButtonRect(500, 750, 200, 50);
+        cv::rectangle(mainScreen, makePostButtonRect, cv::Scalar(0, 255, 0), -1);
+        cv::putText(mainScreen, "Make post", cv::Point(550, 785), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+
+        // Show the window
+        cv::imshow("Main Screen", mainScreen);
+
+        // Wait for a key press
+        cv::waitKey(0);
+
     }
 }
 
