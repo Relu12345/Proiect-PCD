@@ -126,10 +126,6 @@ void *client_handler(void *arg) {
         current_post++;
     }
 
-    // After all posts are sent, send a NULL pointer to indicate the end
-    int end_marker = -1;
-    send(client_sock, &end_marker, sizeof(int), 0);
-
     // Receive image data size from client
     long dataSize;
     if (recv(client_sock, &dataSize, sizeof(long), 0) <= 0) {
