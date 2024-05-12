@@ -8,7 +8,7 @@
 
 struct User {
     int id;
-    char* name;
+    char name[100];
 };
 
 struct Post {
@@ -179,7 +179,7 @@ struct User* get_all_users(PGconn* conn) {
         }
 
         users[user_index].id = atoi(PQgetvalue(res, row, 0));
-        users[user_index].name = strdup(PQgetvalue(res, row, 1));
+        strcpy(users[user_index].name, PQgetvalue(res, row, 1));
 
         user_index++;
     }
@@ -277,7 +277,7 @@ struct User login_user(PGconn* conn, const char* username, const char* password,
         return user;
     }
     user.id = atoi(PQgetvalue(res, 0, 0));
-    user.name = strdup(PQgetvalue(res, 0, 1));
+    strcpy(user.name, PQgetvalue(res, 0, 1));
 
     *returnCode = 0;
     PQclear(res);

@@ -19,7 +19,7 @@ struct Post* get_all_posts(PGconn* conn, int userId);
 
 struct User {
     int id;
-    char* name;
+    char name[100];
 };
 
 struct Post {
