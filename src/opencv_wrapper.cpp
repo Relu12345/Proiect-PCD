@@ -12,7 +12,9 @@
 #include <cstdio>
 #include <atomic>
 #include <vector>
+#include <iomanip>
 #include "database.h"
+#include <cstddef>
 
 extern "C" unsigned char* convertBytesToGrayscale(const unsigned char* imageData, long dataSize, int* width, int* height) {
     // Decode the image bytes
@@ -307,11 +309,52 @@ extern "C" void createLoginScreen() {
     disableNonBlockingInput();
 }
 
+unsigned char hexCharToByte(char hex) {
+    if (hex >= '0' && hex <= '9') {
+        return hex - '0';
+    } else if (hex >= 'a' && hex <= 'f') {
+        return hex - 'a' + 10;
+    } else if (hex >= 'A' && hex <= 'F') {
+        return hex - 'A' + 10;
+    }
+    return 0; // Error
+}
+
+std::vector<unsigned char> transformData(const std::vector<unsigned char>& inputData) {
+    std::vector<unsigned char> outputData;
+    for (size_t i = 2; i < inputData.size(); i += 2) {
+        unsigned char value = (hexCharToByte(inputData[i]) << 4) | hexCharToByte(inputData[i + 1]);
+        outputData.push_back(value);
+    }
+    return outputData;
+}
+
+void printVectorToFile(const std::vector<uchar>& data, const std::string& filename) {
+    std::ofstream outputFile(filename, std::ios::binary);
+    if (!outputFile) {
+        std::cerr << "Error opening file for writing: " << filename << std::endl;
+        return;
+    }
+
+    // Write vector data to the file
+    outputFile.write(reinterpret_cast<const char*>(data.data()), data.size());
+
+    // Close the file
+    outputFile.close();
+
+    std::cout << "Vector data has been written to " << filename << std::endl;
+}
+
 typedef unsigned char uchar;
 
 std::vector<uchar> convertToVector(const uchar* data, size_t size) {
     // Initialize vector with data from the array
     return std::vector<uchar>(data, data + size);
+}
+
+uchar* convertToPointer(std::vector<uchar>& vec) {
+    // Return a pointer to the beginning of the vector's data
+    return vec.data();
 }
 
 extern "C" void mainScreen() {
@@ -329,9 +372,46 @@ extern "C" void mainScreen() {
         
         cv::putText(mainScreen, std::to_string(posts[0].id), cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
         std::vector<uchar> imageVector = convertToVector(posts[0].image, sizes[0]);
-        cv::Mat img = cv::Mat(400, 300, CV_8UC3, (void*)posts[0].image);
-        cv::Rect imageRect((mainScreen.cols - img.cols) / 2, 50, img.cols, img.rows);
-        img.copyTo(mainScreen(imageRect));
+        std::vector<uchar> binaryData = transformData(imageVector);
+        //cv::Mat img = cv::Mat(400, 300, CV_8UC3, (void*)posts[0].image);
+        //cv::Mat img = cv::imdecode(cv::Mat(800, 800, CV_8UC3, (void*)posts[0].image), cv::IMREAD_COLOR);
+        // cv::Rect imageRect((mainScreen.cols - img.cols) / 2, 50, img.cols, img.rows);
+        // img.copyTo(mainScreen(imageRect));
+
+        std::string filename = "output.txt";
+        std::string filename2 = "output2.txt";
+
+        // Print vector data to file
+        printVectorToFile(imageVector, filename);
+        printVectorToFile(binaryData, filename2);
+
+        cv::Mat img = cv::imdecode(binaryData, cv::IMREAD_COLOR);
+
+        // Check if the image is decoded successfully
+        if (img.empty()) {
+            std::cout << "Failed to decode image." << std::endl;
+            return;
+        }
+
+        // Print image dimensions
+        std::cout << "Image dimensions: " << img.cols << "x" << img.rows << std::endl;
+
+        int x = (mainScreen.cols - img.cols) / 2;
+        int y = (mainScreen.rows - img.rows) / 2;
+
+        int width = std::min(img.cols, mainScreen.cols - x);
+        int height = std::min(img.rows, mainScreen.rows - y);
+
+        cv::Rect imageRect(x, y, width, height);
+
+        // Check if the imageRect is valid
+        if (imageRect.x < 0 || imageRect.y < 0 || imageRect.x + imageRect.width > mainScreen.cols || imageRect.y + imageRect.height > mainScreen.rows) {
+            std::cout << "Invalid region for placing image." << std::endl;
+            return;
+        }
+
+        // Copy the image onto the mainScreen
+        img(cv::Rect(0, 0, width, height)).copyTo(mainScreen(imageRect));
 
         // Buttons
         cv::Rect leftButtonRect(150, 400, 100, 50);
@@ -356,6 +436,9 @@ extern "C" void mainScreen() {
 
     }
 }
+
+std::vector<uchar> buffer;
+int image_size;
 
 extern "C" void createPostScreen () {
     cv::Mat postScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
@@ -387,17 +470,36 @@ extern "C" void createPostScreen () {
         
         if (image_uploaded) {
             cv::Mat image = cv::imread(postData.imagePath);
+            std::string filename = "output.txt";
+
+            cv::imencode(".jpg", image, buffer);
+            image_size = image.total() * image.elemSize();
+            printVectorToFile(buffer, filename);
+            cv::Mat reconstructed_image = cv::imdecode(buffer, cv::IMREAD_COLOR);
+
+            if(reconstructed_image.empty()) {
+                std::cout << "Failed to decode image." << std::endl;
+                return;
+            }
+
+            cv::namedWindow("Image Screen", cv::WINDOW_NORMAL);
+            cv::imshow("Image Screen", reconstructed_image);
+            cv::waitKey(0);
+            cv::destroyAllWindows();
+            return;
+
             if(!image.empty()) {
                 cv::resize(image, image, cv::Size(rightSectionRect.width, rightSectionRect.height));
 
                 // Copy the image to the right section
                 image.copyTo(postScreen(rightSectionRect));
             }
+            postWindowVisible = false;
         }
         // Show the updated login screen
         cv::imshow("Post Screen", postScreen);
         
-        char key = cv::waitKey(10);
+        cv::waitKey(0);
     }
 
     disableNonBlockingInput();
@@ -416,4 +518,12 @@ extern "C" void setPosts(Post* dbPosts, int count, size_t *imageSizes) {
     posts = dbPosts;
     postCount = count;
     sizes = imageSizes;
+}
+
+extern "C" unsigned char* getImage() {
+    return convertToPointer(buffer);
+}
+
+extern "C" int getImageSize() {
+    return image_size;
 }
