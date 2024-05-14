@@ -58,6 +58,13 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "stdlib.h": "c",
-        "login.h": "c"
+        "login.h": "c",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp",
+        "cfenv": "cpp",
+        "typeindex": "cpp"
     }
 }

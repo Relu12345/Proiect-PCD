@@ -15,7 +15,9 @@ void createPostScreen();
 void setSocket(int socket);
 void mainScreen ();
 void setUser(int id, const char* name);
-void setPosts(struct Post* dbPosts, int count);
+void setPosts(struct Post* dbPosts, int count, size_t *imageSizes);
+unsigned char* getImage();
+int getImageSize();
 
 #ifdef __cplusplus
 }

@@ -219,10 +219,10 @@ bool insertPost(PGconn* conn, int user_id, void* image, size_t image_size, const
     }
     size_t escaped_len;
     char* escaped_image = PQescapeByteaConn(conn, (const unsigned char*)image, image_size, &escaped_len);
-    int buffer_len = snprintf(NULL, 0, "INSERT INTO post (user_id, image, description) VALUES (%d, '%s', '%s')", user_id, escaped_image, "description dhuhausdosahu duadh osa hudsaoh");
+    int buffer_len = snprintf(NULL, 0, "INSERT INTO post (user_id, image, description) VALUES (%d, '%s', '%s')", user_id, escaped_image, description);
     char query[buffer_len + 1];
 
-    snprintf(query, buffer_len + 1, "INSERT INTO post (user_id, image, description) VALUES (%d, '%s', '%s')", user_id, escaped_image, "description dhuhausdosahu duadh osa hudsaoh");
+    snprintf(query, buffer_len + 1, "INSERT INTO post (user_id, image, description) VALUES (%d, '%s', '%s')", user_id, escaped_image, description);
 
     PGresult* res = PQexec(conn, query);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {

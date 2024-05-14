@@ -119,35 +119,49 @@ void *client_handler(void *arg) {
     // Send the number of posts
     send(client_sock, &num_posts, sizeof(int), 0);
 
-    // Iterate through the posts and send each post individually
-    struct Post* current_post = posts;
-    for (int i = 0; i < num_posts; i++) {
-        send(client_sock, &(current_post->id), sizeof(int), 0);
-        send(client_sock, &(current_post->userId), sizeof(int), 0);
-        int description_length = strlen(current_post->description) + 1; // Include null terminator
-        send(client_sock, &description_length, sizeof(int), 0);
-        send(client_sock, current_post->description, description_length, 0);
-        int username_length = strlen(current_post->userName) + 1; // Include null terminator
-        send(client_sock, &username_length, sizeof(int), 0);
-        send(client_sock, current_post->userName, username_length, 0);
-        send(client_sock, &(current_post->likeCount), sizeof(int), 0);
-        send(client_sock, &(current_post->liked), sizeof(int), 0);
-        current_post++;
+    if (num_posts != 0) {
+        size_t *imageSizes = malloc(sizeof(size_t) * num_posts);
+        struct Post* current_post = posts;
+        for (int i = 0; i < num_posts; i++) {
+            imageSizes[i] = strlen(current_post->image) + 1;
+            current_post++;
+        }
+
+        send(client_sock, imageSizes, sizeof(size_t) * num_posts, 0);
+
+        current_post = posts;
+        // Iterate through the posts and send each post individually
+        for (int i = 0; i < num_posts; i++) {
+            send(client_sock, &(current_post->id), sizeof(int), 0);
+            send(client_sock, &(current_post->userId), sizeof(int), 0);
+            size_t imageSize = strlen(current_post->image) + 1;
+            send(client_sock, &imageSize, sizeof(size_t), 0);
+            send(client_sock, current_post->image, imageSize, 0);
+            int description_length = strlen(current_post->description) + 1; // Include null terminator
+            send(client_sock, &description_length, sizeof(int), 0);
+            send(client_sock, current_post->description, description_length, 0);
+            int username_length = strlen(current_post->userName) + 1; // Include null terminator
+            send(client_sock, &username_length, sizeof(int), 0);
+            send(client_sock, current_post->userName, username_length, 0);
+            send(client_sock, &(current_post->likeCount), sizeof(int), 0);
+            send(client_sock, &(current_post->liked), sizeof(int), 0);
+            current_post++;
+        }
     }
 
     // Receive image data size from client
-    long dataSize;
-    if (recv(client_sock, &dataSize, sizeof(long), 0) <= 0) {
+    int image_size;
+    if (recv(client_sock, &image_size, sizeof(int), 0) <= 0) {
         perror("Failed to receive image data size from client");
         close(client_sock);
         free(client_info);
         pthread_exit(NULL);
     }
 
-    printf("dataSize: %ld\n", dataSize);
+    printf("dataSize: %d\n", image_size);
 
     // Receive image data (grayscale byte array) from the client
-    unsigned char* imageData = (unsigned char*)malloc(dataSize);
+    unsigned char* imageData = (unsigned char*)malloc(image_size);
     if (imageData == NULL) {
         perror("Failed to allocate memory for image data");
         close(client_sock);
@@ -156,7 +170,7 @@ void *client_handler(void *arg) {
     }
 
     // Receive image data from client
-    if (recv(client_sock, imageData, dataSize, 0) <= 0) {
+    if (recv(client_sock, imageData, image_size, 0) <= 0) {
         perror("Failed to receive image data from client");
         free(imageData);
         close(client_sock);
@@ -164,22 +178,29 @@ void *client_handler(void *arg) {
         pthread_exit(NULL);
     }
 
-    // Convert image data to grayscale
-    int width, height;
-    unsigned char* grayscaleData = convertBytesToGrayscale(imageData, dataSize, &width, &height);
+    if(!insertPost(conn, user.id, (void *)imageData, (size_t) image_size, "New pic just dropped")) {
+        perror("erorrtiune");
+        close(client_sock);
+        free(client_info);
+        pthread_exit(NULL);
+    }
 
-    printf("Width: %d\nHeight: %d\n", width, height);
+    // // Convert image data to grayscale
+    // int width, height;
+    // unsigned char* grayscaleData = convertBytesToGrayscale(imageData, dataSize, &width, &height);
+
+    // printf("Width: %d\nHeight: %d\n", width, height);
     
-    // Send grayscale data back to client
-    send(client_sock, &width, sizeof(int), 0);
-    send(client_sock, &height, sizeof(int), 0);
-    send(client_sock, grayscaleData, width * height * sizeof(unsigned char), 0);
+    // // Send grayscale data back to client
+    // send(client_sock, &width, sizeof(int), 0);
+    // send(client_sock, &height, sizeof(int), 0);
+    // send(client_sock, grayscaleData, width * height * sizeof(unsigned char), 0);
 
-    printf("Width: %d\nHeight: %d\n", width, height);
+    // printf("Width: %d\nHeight: %d\n", width, height);
 
-    // Free memory
-    free(imageData);
-    free(grayscaleData);
+    // // Free memory
+    // free(imageData);
+    // free(grayscaleData);
 
     // Close socket and free resources
     printf("Client %d disconnected.\n", id);
