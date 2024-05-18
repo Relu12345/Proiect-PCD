@@ -66,6 +66,7 @@ void *client_handler(void *arg) {
             int loginResult = 1;
             // Successful register, we send a signal to the client to say this
             user = login(conn, username, password, &loginResult);
+            posts = get_all_posts(conn, user.id);
             //setDatabase(conn, user.name, user.id);
             if (loginResult == 0) {
                 // Successful login, we send a signal to the client to say this
@@ -123,7 +124,7 @@ void *client_handler(void *arg) {
         size_t *imageSizes = malloc(sizeof(size_t) * num_posts);
         struct Post* current_post = posts;
         for (int i = 0; i < num_posts; i++) {
-            imageSizes[i] = strlen(current_post->image) + 1;
+            imageSizes[i] = (strlen(current_post->image) + 1);
             current_post++;
         }
 
@@ -134,9 +135,20 @@ void *client_handler(void *arg) {
         for (int i = 0; i < num_posts; i++) {
             send(client_sock, &(current_post->id), sizeof(int), 0);
             send(client_sock, &(current_post->userId), sizeof(int), 0);
-            size_t imageSize = strlen(current_post->image) + 1;
+            size_t imageSize = (strlen(current_post->image) + 1);
             send(client_sock, &imageSize, sizeof(size_t), 0);
-            send(client_sock, current_post->image, imageSize, 0);
+            printf("sent image size: %zu\n", imageSize);
+            size_t bytesSent = 0;
+            while (bytesSent < imageSize) {
+                size_t bytesToSend = (CHUNK_SIZE < imageSize - bytesSent) ? CHUNK_SIZE : (imageSize - bytesSent);
+                int sent = send(client_sock, current_post->image + bytesSent, bytesToSend, 0);
+                if (sent < 0) {
+                    perror("Failed to send image data");
+                    exit(EXIT_FAILURE);
+                }
+                bytesSent += sent;
+            }
+            // send(client_sock, current_post->image, imageSize, 0);
             int description_length = strlen(current_post->description) + 1; // Include null terminator
             send(client_sock, &description_length, sizeof(int), 0);
             send(client_sock, current_post->description, description_length, 0);
@@ -149,58 +161,73 @@ void *client_handler(void *arg) {
         }
     }
 
-    // Receive image data size from client
-    int image_size;
-    if (recv(client_sock, &image_size, sizeof(int), 0) <= 0) {
-        perror("Failed to receive image data size from client");
-        close(client_sock);
-        free(client_info);
-        pthread_exit(NULL);
+    char buffer[CHUNK_SIZE] = {0};
+    while (1) {
+        memset(buffer, 0, sizeof(buffer));
+
+        int valread = recv(client_sock, buffer, CHUNK_SIZE, 0);
+        if (valread < 0) {
+            perror("recv failed");
+            printf("Client %d disconnected.\n", id);
+            close(client_sock);
+            free(client_info);
+            pthread_exit(NULL);
+        }
+
+        buffer[CHUNK_SIZE] = '\0';
+
+        if (strcmp(buffer, "post") == 0) {
+            printf ("post signal received!\n");
+            // Receive image data size from client
+            size_t image_size;
+            if (recv(client_sock, &image_size, sizeof(size_t), 0) <= 0) {
+                perror("Failed to receive image data size from client");
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            printf("image size: %zu\n", image_size);
+
+            // Receive image data (grayscale byte array) from the client
+            unsigned char* imageData = (unsigned char*)malloc(image_size);
+            if (imageData == NULL) {
+                perror("Failed to allocate memory for image data");
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            // Receive image data from client
+            size_t bytesReceived = 0;
+            while (bytesReceived < image_size) {
+                size_t remainingBytes = image_size - bytesReceived;
+                size_t bytesToReceive = remainingBytes > CHUNK_SIZE ? CHUNK_SIZE : remainingBytes;
+                int received = recv(client_sock, imageData + bytesReceived, bytesToReceive, 0);
+                if (received <= 0) {
+                    if (received < 0) {
+                        perror("Failed to receive image data");
+                    } else {
+                        printf("Connection closed by client\n");
+                    }
+                    free(imageData);
+                    close(client_sock);
+                    free(client_info);
+                    pthread_exit(NULL);
+                }
+                bytesReceived += received;
+            }
+
+            if(!insertPost(conn, user.id, (void *)imageData, image_size, "New pic just dropped")) {
+                perror("erorrtiune");
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            printf("Image inserted successfully!\n");
+        }
     }
-
-    printf("dataSize: %d\n", image_size);
-
-    // Receive image data (grayscale byte array) from the client
-    unsigned char* imageData = (unsigned char*)malloc(image_size);
-    if (imageData == NULL) {
-        perror("Failed to allocate memory for image data");
-        close(client_sock);
-        free(client_info);
-        pthread_exit(NULL);
-    }
-
-    // Receive image data from client
-    if (recv(client_sock, imageData, image_size, 0) <= 0) {
-        perror("Failed to receive image data from client");
-        free(imageData);
-        close(client_sock);
-        free(client_info);
-        pthread_exit(NULL);
-    }
-
-    if(!insertPost(conn, user.id, (void *)imageData, (size_t) image_size, "New pic just dropped")) {
-        perror("erorrtiune");
-        close(client_sock);
-        free(client_info);
-        pthread_exit(NULL);
-    }
-
-    // // Convert image data to grayscale
-    // int width, height;
-    // unsigned char* grayscaleData = convertBytesToGrayscale(imageData, dataSize, &width, &height);
-
-    // printf("Width: %d\nHeight: %d\n", width, height);
-    
-    // // Send grayscale data back to client
-    // send(client_sock, &width, sizeof(int), 0);
-    // send(client_sock, &height, sizeof(int), 0);
-    // send(client_sock, grayscaleData, width * height * sizeof(unsigned char), 0);
-
-    // printf("Width: %d\nHeight: %d\n", width, height);
-
-    // // Free memory
-    // free(imageData);
-    // free(grayscaleData);
 
     // Close socket and free resources
     printf("Client %d disconnected.\n", id);

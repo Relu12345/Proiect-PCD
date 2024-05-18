@@ -220,7 +220,12 @@ bool insertPost(PGconn* conn, int user_id, void* image, size_t image_size, const
     size_t escaped_len;
     char* escaped_image = PQescapeByteaConn(conn, (const unsigned char*)image, image_size, &escaped_len);
     int buffer_len = snprintf(NULL, 0, "INSERT INTO post (user_id, image, description) VALUES (%d, '%s', '%s')", user_id, escaped_image, description);
-    char query[buffer_len + 1];
+ 
+    char* query = (char*)malloc(buffer_len + 1);
+    if (query == NULL) {
+        fprintf(stderr, "Error: Memory allocation failed.\n");
+        return false;
+    }
 
     snprintf(query, buffer_len + 1, "INSERT INTO post (user_id, image, description) VALUES (%d, '%s', '%s')", user_id, escaped_image, description);
 

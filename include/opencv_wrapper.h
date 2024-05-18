@@ -3,13 +3,12 @@
 
 #include <libpq-fe.h>
 #include "database.h"
+#include "connection.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-unsigned char* convertBytesToGrayscale(const unsigned char* imageData, long dataSize, int* width, int* height);
-void showImageFromBytes(const unsigned char* data, int width, int height);
 void createLoginScreen();
 void createPostScreen();
 void setSocket(int socket);

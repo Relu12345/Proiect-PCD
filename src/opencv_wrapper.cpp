@@ -14,44 +14,8 @@
 #include <vector>
 #include <iomanip>
 #include "database.h"
+#include "connection.h"
 #include <cstddef>
-
-extern "C" unsigned char* convertBytesToGrayscale(const unsigned char* imageData, long dataSize, int* width, int* height) {
-    // Decode the image bytes
-    cv::Mat image = cv::imdecode(cv::Mat(1, dataSize, CV_8UC1, (void*)imageData), cv::IMREAD_COLOR);
-    if (image.empty()) {
-        *width = 0;
-        *height = 0;
-        return nullptr;
-    }
-
-    // Convert the image to grayscale
-    cv::Mat grayImage;
-    cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
-
-    // Prepare the byte array
-    *width = grayImage.cols;
-    *height = grayImage.rows;
-    unsigned char* byteArray = new unsigned char[*width * *height];
-    
-    // Copy grayscale values to the byte array
-    for (int i = 0; i < grayImage.rows; ++i) {
-        for (int j = 0; j < grayImage.cols; ++j) {
-            byteArray[i * grayImage.cols + j] = grayImage.at<uchar>(i, j);
-        }
-    }
-
-    return byteArray;
-}
-
-extern "C" void showImageFromBytes(const unsigned char* data, int width, int height) {
-    cv::namedWindow("Grayscale Image", cv::WINDOW_NORMAL);
-    cv::resizeWindow("Grayscale Image", width, height);
-    cv::imshow("Grayscale Image", cv::Mat(height, width, CV_8UC1, (void*)data));
-
-    cv::waitKey(0);
-    cv::destroyAllWindows();
-}
 
 struct PostData {
     std::string imagePath;
@@ -172,16 +136,23 @@ void onMouse(int event, int x, int y, int flags, void* userdata) {
     }
 }
 
-// void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
-//     if (event == cv::EVENT_LBUTTONDOWN) {
-
-//     }
-// }
+void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
+    if (event == cv::EVENT_LBUTTONDOWN) {
+        std::cout << "Post button pressed!" << std::endl;
+        // Check if the click is within the "New Post" button
+        if (x >= 500 && x <= 700 && y >= 750 && y <= 800) {
+            mainWindowVisible = false; // Close the main screen
+            postWindowVisible = true; // Open the post screen
+            cv::destroyWindow("Main Screen");
+            createPostScreen(); // Open the createPostScreen
+        }
+    }
+}
 
 void postOnMouse(int event, int x, int y, int flags, void* userdata) {
     if (event == cv::EVENT_LBUTTONDOWN) {
         PostData* data = (PostData*)userdata;
-        if (x >= 300 && x <= 400 && y >= 300 && y <= 340) {
+        if (x >= 250 && x <= 350 && y >= 300 && y <= 340) {
             FILE *in;
             if (!(in = popen("zenity  --title=\"Select an image\" --file-selection","r"))) {
                 perror("popen error");
@@ -197,6 +168,21 @@ void postOnMouse(int event, int x, int y, int flags, void* userdata) {
             selectFile.erase(std::remove(selectFile.begin(), selectFile.end(), '\n'), selectFile.end());
             data->imagePath = selectFile;
             image_uploaded = true;
+            if (send(serverSock, "post", strlen("post"), 0) == -1) {
+                perror("send failed");
+                exit(EXIT_FAILURE);
+            }
+            std::cout << "sent post signal" << std::endl;
+        }
+        
+        // Check if the click is within the "Cancel" button
+        if (x >= 10 && x <= 130 && y >= 10 && y <= 60) {
+            std::cout << "Cancel button pressed!" << std::endl;
+            postWindowVisible = false; // Close the post screen
+            mainWindowVisible = true; // Open the main screen
+            cv::destroyWindow("Post Screen");
+            mainScreen(); // Call mainScreen function
+            return;
         }
     }
 }
@@ -360,85 +346,103 @@ uchar* convertToPointer(std::vector<uchar>& vec) {
 extern "C" void mainScreen() {
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
+    enableNonBlockingInput();
+    cv::setMouseCallback("Main Screen", mainOnMouse);
     cv::imshow("Main Screen", mainScreen);
-    // cv::setMouseCallback("Main Screen", mainOnMouse, &posts);
 
     
     while (mainWindowVisible) {
         mainScreen = cv::Scalar(255, 255, 255);
-        // nothing yet
-        std::cout << "rando id: " << posts[0].id << std::endl;
-        // Username
-        
-        cv::putText(mainScreen, std::to_string(posts[0].id), cv::Point(200, 200), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
-        std::vector<uchar> imageVector = convertToVector(posts[0].image, sizes[0]);
-        std::vector<uchar> binaryData = transformData(imageVector);
-        //cv::Mat img = cv::Mat(400, 300, CV_8UC3, (void*)posts[0].image);
-        //cv::Mat img = cv::imdecode(cv::Mat(800, 800, CV_8UC3, (void*)posts[0].image), cv::IMREAD_COLOR);
-        // cv::Rect imageRect((mainScreen.cols - img.cols) / 2, 50, img.cols, img.rows);
-        // img.copyTo(mainScreen(imageRect));
 
+        cv::Mat img(800, 800, CV_8UC3, cv::Scalar(255, 255, 255));
+
+        if (posts != nullptr) {
+            std::vector<uchar> imageVector = convertToVector(posts[0].image, sizes[0]);
+            std::vector<uchar> binaryData = transformData(imageVector);
+
+            cv::Mat new_img = cv::imdecode(binaryData, cv::IMREAD_COLOR);
+
+            // Check if the image is decoded successfully
+            if (new_img.empty()) {
+                std::cout << "Failed to decode image." << std::endl;
+                return;
+            }
+
+            img = new_img.clone();
+        }
+
+        /* For comparing images
         std::string filename = "output.txt";
         std::string filename2 = "output2.txt";
 
         // Print vector data to file
         printVectorToFile(imageVector, filename);
         printVectorToFile(binaryData, filename2);
-
-        cv::Mat img = cv::imdecode(binaryData, cv::IMREAD_COLOR);
-
-        // Check if the image is decoded successfully
-        if (img.empty()) {
-            std::cout << "Failed to decode image." << std::endl;
-            return;
-        }
+        */
 
         // Print image dimensions
-        std::cout << "Image dimensions: " << img.cols << "x" << img.rows << std::endl;
+        // std::cout << "Image dimensions: " << img.cols << "x" << img.rows << std::endl;
 
-        int x = (mainScreen.cols - img.cols) / 2;
-        int y = (mainScreen.rows - img.rows) / 2;
+        double aspect_ratio = (double)img.cols / (double)img.rows;
 
-        int width = std::min(img.cols, mainScreen.cols - x);
-        int height = std::min(img.rows, mainScreen.rows - y);
+        int max_width = 640;
+        int max_height = 480;
 
-        cv::Rect imageRect(x, y, width, height);
+        int new_width = max_width;
+        int new_height = static_cast<int>(max_width / aspect_ratio);
+        if (new_height > max_height) {
+            new_height = max_height;
+            new_width = static_cast<int>(max_height * aspect_ratio);
+        }
 
-        // Check if the imageRect is valid
+        cv::Mat resizedImg;
+        cv::resize(img, resizedImg, cv::Size(new_width, new_height));
+
+        int x = (mainScreen.cols - resizedImg.cols) / 2;
+        int y = (mainScreen.rows - resizedImg.rows) / 2;
+
+        cv::Rect imageRect(x, y, resizedImg.cols, resizedImg.rows);
+
         if (imageRect.x < 0 || imageRect.y < 0 || imageRect.x + imageRect.width > mainScreen.cols || imageRect.y + imageRect.height > mainScreen.rows) {
             std::cout << "Invalid region for placing image." << std::endl;
             return;
         }
 
-        // Copy the image onto the mainScreen
-        img(cv::Rect(0, 0, width, height)).copyTo(mainScreen(imageRect));
+        resizedImg.copyTo(mainScreen(imageRect));
 
         // Buttons
-        cv::Rect leftButtonRect(150, 400, 100, 50);
+        cv::Rect leftButtonRect(100, 400, 100, 50);
         cv::rectangle(mainScreen, leftButtonRect, cv::Scalar(0, 0, 255), -1);
-        cv::Rect rightButtonRect(950, 400, 100, 50);
+        cv::putText(mainScreen, "<", cv::Point(135, 435), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
+
+        cv::Rect rightButtonRect(1000, 400, 100, 50);
         cv::rectangle(mainScreen, rightButtonRect, cv::Scalar(255, 0, 0), -1);
+        cv::putText(mainScreen, ">", cv::Point(1035, 435), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
 
         cv::Rect upperLeftArrowRect(50, 200, 50, 50);
         cv::rectangle(mainScreen, upperLeftArrowRect, cv::Scalar(0, 0, 0), -1);
-        cv::Rect upperRightArrowRect(1150, 200, 50, 50);
+        cv::putText(mainScreen, "<<", cv::Point(50, 235), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
+
+        cv::Rect upperRightArrowRect(1100, 200, 50, 50);
         cv::rectangle(mainScreen, upperRightArrowRect, cv::Scalar(0, 0, 0), -1);
+        cv::putText(mainScreen, ">>", cv::Point(1100, 235), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
 
         cv::Rect makePostButtonRect(500, 750, 200, 50);
         cv::rectangle(mainScreen, makePostButtonRect, cv::Scalar(0, 255, 0), -1);
-        cv::putText(mainScreen, "Make post", cv::Point(550, 785), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+        cv::putText(mainScreen, "New Post", cv::Point(525, 785), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2);
 
         // Show the window
         cv::imshow("Main Screen", mainScreen);
 
         // Wait for a key press
         cv::waitKey(0);
-
     }
+    disableNonBlockingInput();
+    cv::destroyWindow("Main Screen");
 }
 
 std::vector<uchar> buffer;
-int image_size;
+size_t image_size;
 
 extern "C" void createPostScreen () {
     cv::Mat postScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
@@ -446,6 +450,14 @@ extern "C" void createPostScreen () {
     enableNonBlockingInput();
     cv::imshow("Post Screen", postScreen);
     cv::setMouseCallback("Post Screen", postOnMouse, &postData);
+
+    // Draw the "Cancel" button
+    int cancelButtonX = 10;
+    int cancelButtonY = 10;
+    int cancelButtonWidth = 120;
+    int cancelButtonHeight = 50;
+    cv::rectangle(postScreen, cv::Rect(cancelButtonX, cancelButtonY, cancelButtonWidth, cancelButtonHeight), cv::Scalar(0, 0, 255), -1);
+    cv::putText(postScreen, "Cancel", cv::Point(cancelButtonX + 10, cancelButtonY + 35), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
 
     int leftSectionWidth = 600;
     cv::Rect leftSectionRect(0, 0, leftSectionWidth, postScreen.rows);
@@ -464,38 +476,73 @@ extern "C" void createPostScreen () {
         cv::putText(postScreen, "Upload", cv::Point(buttonX + 10, buttonY + 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
     }
 
+    int rightSectionWidth = postScreen.cols - leftSectionWidth;
+    cv::Rect rightSectionRect(leftSectionWidth, 0, rightSectionWidth, postScreen.rows);
+
     while(postWindowVisible) {
-        int rightSectionWidth = postScreen.cols - leftSectionWidth;
-        cv::Rect rightSectionRect(leftSectionWidth, 0, rightSectionWidth, postScreen.rows);
+        cv::Mat reconstructed_image;
         
         if (image_uploaded) {
             cv::Mat image = cv::imread(postData.imagePath);
-            std::string filename = "output.txt";
 
             cv::imencode(".jpg", image, buffer);
-            image_size = image.total() * image.elemSize();
+            image_size = buffer.size() + 1;
+
+            /* This is used for debug only
+            std::string filename = "output.txt";
             printVectorToFile(buffer, filename);
-            cv::Mat reconstructed_image = cv::imdecode(buffer, cv::IMREAD_COLOR);
+            */
+
+            std::cout << "image size: " << image_size << std::endl;
+            reconstructed_image = cv::imdecode(buffer, cv::IMREAD_COLOR);
 
             if(reconstructed_image.empty()) {
                 std::cout << "Failed to decode image." << std::endl;
                 return;
             }
 
-            cv::namedWindow("Image Screen", cv::WINDOW_NORMAL);
-            cv::imshow("Image Screen", reconstructed_image);
-            cv::waitKey(0);
-            cv::destroyAllWindows();
-            return;
-
             if(!image.empty()) {
-                cv::resize(image, image, cv::Size(rightSectionRect.width, rightSectionRect.height));
+                double aspect_ratio = (double)reconstructed_image.cols / (double)reconstructed_image.rows;
 
-                // Copy the image to the right section
-                image.copyTo(postScreen(rightSectionRect));
+                int max_width = rightSectionRect.width;
+                int max_height = rightSectionRect.height;
+
+                int new_width = max_width;
+                int new_height = static_cast<int>(max_width / aspect_ratio);
+                if (new_height > max_height) {
+                    new_height = max_height;
+                    new_width = static_cast<int>(max_height * aspect_ratio);
+                }
+                
+                cv::resize(reconstructed_image, reconstructed_image, cv::Size(new_width, new_height));
             }
-            postWindowVisible = false;
+
+            send(serverSock, &image_size, sizeof(size_t), 0);
+            uchar* imageDataPointer = convertToPointer(buffer);
+            size_t bytesSent = 0;
+            while (bytesSent < image_size) {
+                size_t bytesToSend = std::min((size_t) CHUNK_SIZE, image_size - bytesSent);
+                int sent = send(serverSock, imageDataPointer + bytesSent, bytesToSend, 0);
+                if (sent < 0) {
+                    perror("Failed to send image data");
+                    exit(EXIT_FAILURE);
+                }
+                bytesSent += sent;
+            }
+            image_uploaded = false;
+            std::cout << "image sent" << std::endl;
         }
+
+        if (!reconstructed_image.empty()) {
+            cv::Rect imageRect((rightSectionRect.width - reconstructed_image.cols) / 2, (rightSectionRect.height - reconstructed_image.rows) / 2, reconstructed_image.cols, reconstructed_image.rows);
+        
+            if (reconstructed_image.channels() != 3) {
+                cv::cvtColor(reconstructed_image, reconstructed_image, cv::COLOR_GRAY2BGR);
+            }
+
+            reconstructed_image.copyTo(postScreen(rightSectionRect)(imageRect));
+        }
+
         // Show the updated login screen
         cv::imshow("Post Screen", postScreen);
         
@@ -518,12 +565,4 @@ extern "C" void setPosts(Post* dbPosts, int count, size_t *imageSizes) {
     posts = dbPosts;
     postCount = count;
     sizes = imageSizes;
-}
-
-extern "C" unsigned char* getImage() {
-    return convertToPointer(buffer);
-}
-
-extern "C" int getImageSize() {
-    return image_size;
 }
