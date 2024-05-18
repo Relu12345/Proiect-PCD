@@ -138,9 +138,9 @@ void onMouse(int event, int x, int y, int flags, void* userdata) {
 
 void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
     if (event == cv::EVENT_LBUTTONDOWN) {
-        std::cout << "Post button pressed!" << std::endl;
         // Check if the click is within the "New Post" button
         if (x >= 500 && x <= 700 && y >= 750 && y <= 800) {
+            std::cout << "Post button pressed!" << std::endl;
             mainWindowVisible = false; // Close the main screen
             postWindowVisible = true; // Open the post screen
             cv::destroyWindow("Main Screen");
