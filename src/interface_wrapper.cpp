@@ -713,8 +713,8 @@ extern "C" void createPostScreen () {
 
         // Show the updated login screen
         cv::imshow("Post Screen", postScreen);
-        
-        cv::waitKey(0);
+
+        cv::waitKey(1);
     }
 
     disableNonBlockingInput();
