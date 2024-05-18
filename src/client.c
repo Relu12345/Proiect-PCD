@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include "connection.h"
-#include "opencv_wrapper.h"
+#include "interface_wrapper.h"
 #include "login.h"
 
 #define MAX_IMAGE_SIZE 100000000
