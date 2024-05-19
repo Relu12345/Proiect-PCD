@@ -76,6 +76,7 @@ void *client_handler(void *arg) {
                 // Invalid login, we send a signal to the client to say this
                 send(client_sock, "FAIL", 4, 0);
                 printf("Invalid login\n");
+                printf("Client %d disconnected.\n", id);
                 close(client_sock);
                 free(client_info);
                 pthread_exit(NULL);
@@ -85,6 +86,7 @@ void *client_handler(void *arg) {
             // Invalid register, we send a signal to the client to say this
             send(client_sock, "FAIL", 4, 0);
             printf("Invalid register\n");
+            printf("Client %d disconnected.\n", id);
             close(client_sock);
             free(client_info);
             pthread_exit(NULL);
@@ -102,6 +104,7 @@ void *client_handler(void *arg) {
             // Invalid login, we send a signal to the client to say this
             send(client_sock, "FAIL", 4, 0);
             printf("Invalid login\n");
+            printf("Client %d disconnected.\n", id);
             close(client_sock);
             free(client_info);
             pthread_exit(NULL);
@@ -144,6 +147,7 @@ void *client_handler(void *arg) {
                 int sent = send(client_sock, current_post->image + bytesSent, bytesToSend, 0);
                 if (sent < 0) {
                     perror("Failed to send image data");
+                    printf("Client %d disconnected.\n", id);
                     exit(EXIT_FAILURE);
                 }
                 bytesSent += sent;
@@ -162,26 +166,39 @@ void *client_handler(void *arg) {
     }
 
     char buffer[CHUNK_SIZE] = {0};
+    char description[105] = {0};
     while (1) {
         memset(buffer, 0, sizeof(buffer));
 
-        int valread = recv(client_sock, buffer, CHUNK_SIZE, 0);
-        if (valread < 0) {
-            perror("recv failed");
+        if (recv(client_sock, buffer, 1, 0) <= 0) {
+            perror("Failed to receive signal header from client");
             printf("Client %d disconnected.\n", id);
             close(client_sock);
             free(client_info);
             pthread_exit(NULL);
         }
+        printf("buffer: %s\n", buffer);
 
-        buffer[CHUNK_SIZE] = '\0';
-
-        if (strcmp(buffer, "post") == 0) {
+        if (strcmp(buffer, "P") == 0) {
             printf ("post signal received!\n");
-            // Receive image data size from client
+
+            memset(buffer, 0, sizeof(buffer));
+            memset(description, 0, sizeof(description));
+
+            if (recv(client_sock, description, sizeof(description), 0) <= 0) {
+                perror("Failed to receive description from client");
+                printf("Client %d disconnected.\n", id);
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            printf("received message: %s\n", description);
+
             size_t image_size;
             if (recv(client_sock, &image_size, sizeof(size_t), 0) <= 0) {
                 perror("Failed to receive image data size from client");
+                printf("Client %d disconnected.\n", id);
                 close(client_sock);
                 free(client_info);
                 pthread_exit(NULL);
@@ -193,6 +210,7 @@ void *client_handler(void *arg) {
             unsigned char* imageData = (unsigned char*)malloc(image_size);
             if (imageData == NULL) {
                 perror("Failed to allocate memory for image data");
+                printf("Client %d disconnected.\n", id);
                 close(client_sock);
                 free(client_info);
                 pthread_exit(NULL);
@@ -210,6 +228,7 @@ void *client_handler(void *arg) {
                     } else {
                         printf("Connection closed by client\n");
                     }
+                    printf("Client %d disconnected.\n", id);
                     free(imageData);
                     close(client_sock);
                     free(client_info);
@@ -218,14 +237,17 @@ void *client_handler(void *arg) {
                 bytesReceived += received;
             }
 
-            if(!insertPost(conn, user.id, (void *)imageData, image_size, "New pic just dropped")) {
+            if(!insertPost(conn, user.id, (void *)imageData, image_size, description)) {
                 perror("erorrtiune");
+                printf("Client %d disconnected.\n", id);
                 close(client_sock);
                 free(client_info);
                 pthread_exit(NULL);
             }
 
             printf("Image inserted successfully!\n");
+
+            free(imageData);
         }
     }
 

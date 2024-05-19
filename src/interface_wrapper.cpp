@@ -21,6 +21,9 @@
 struct PostData {
     std::string imagePath;
     std::string imageType;
+    std::string description;
+    bool isTypingDescription;
+    PostData() : isTypingDescription(false) {}
 } postData;
 
 struct LoginData {
@@ -41,9 +44,12 @@ std::atomic<bool> image_uploaded(false);
 std::atomic<bool> filterPressed(false);
 std::atomic<bool> resetRequested(false);
 std::atomic<bool> sendRequested(false);
+std::atomic<bool> postSuccessMessageVisible(false);
+std::chrono::steady_clock::time_point postSuccessMessageTime;
 
 
 // Global variable to hold the client socket
+int currentPostIndex = 0;
 int serverSock;
 int postCount;
 Post* posts = nullptr;
@@ -100,6 +106,14 @@ void disableNonBlockingInput() {
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL) & ~O_NONBLOCK);
 }
 
+void GoToMainScreenFromPost() {
+    postWindowVisible = false; // Close the post screen
+    mainWindowVisible = true; // Open the main screen
+    cv::destroyWindow("Post Screen");
+    mainScreen(); // Call mainScreen function
+    return;
+}
+
 void onMouse(int event, int x, int y, int flags, void* userdata) {
     if (event == cv::EVENT_LBUTTONDOWN) {
         LoginData* data = (LoginData*)userdata;
@@ -142,11 +156,37 @@ void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
     if (event == cv::EVENT_LBUTTONDOWN) {
         // Check if the click is within the "New Post" button
         if (x >= 500 && x <= 700 && y >= 750 && y <= 800) {
-            std::cout << "Post button pressed!" << std::endl;
-            mainWindowVisible = false; // Close the main screen
-            postWindowVisible = true; // Open the post screen
+            mainWindowVisible = false;
+            postWindowVisible = true;
             cv::destroyWindow("Main Screen");
-            createPostScreen(); // Open the createPostScreen
+            createPostScreen();
+        }
+        // Check if the click is within the left button
+        else if (x >= 100 && x <= 200 && y >= 400 && y <= 450) {
+            currentPostIndex = (currentPostIndex - 1 + postCount) % postCount;
+        }
+        // Check if the click is within the right button
+        else if (x >= 1000 && x <= 1100 && y >= 400 && y <= 450) {
+            currentPostIndex = (currentPostIndex + 1) % postCount;
+        }
+        // Check if the click is within the upper left button
+        else if (x >= 50 && x <= 100 && y >= 200 && y <= 250) {
+            currentPostIndex = 0;
+        }
+        // Check if the click is within the upper right button
+        else if (x >= 1100 && x <= 1150 && y >= 200 && y <= 250) {
+            currentPostIndex = postCount - 1;
+        }
+        // Check if the click is within the like button
+        else if (x >= 515 && x <= 579 && y >= 635 && y <= 699) {
+            // Toggle the liked state of the current post
+            posts[currentPostIndex].liked = !posts[currentPostIndex].liked;
+            // Update the like count accordingly
+            if (posts[currentPostIndex].liked) {
+                posts[currentPostIndex].likeCount++;
+            } else {
+                posts[currentPostIndex].likeCount--;
+            }
         }
     }
 }
@@ -279,12 +319,15 @@ void postOnMouse(int event, int x, int y, int flags, void* userdata) {
         
         // Check if the click is within the "Cancel" button
         if (x >= 10 && x <= 130 && y >= 10 && y <= 60) {
+            GoToMainScreenFromPost();
             std::cout << "Cancel button pressed!" << std::endl;
-            postWindowVisible = false; // Close the post screen
-            mainWindowVisible = true; // Open the main screen
-            cv::destroyWindow("Post Screen");
-            mainScreen(); // Call mainScreen function
-            return;
+        }
+        
+        // Check if the click is within the description input field
+        if (x >= 20 && x <= 570 && y >= 400 && y <= 450) {
+            data->isTypingDescription = true;
+        } else {
+            data->isTypingDescription = false;
         }
     }
 }
@@ -357,7 +400,7 @@ extern "C" void createLoginScreen() {
             int textWidth = cv::getTextSize(loginData.password, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, nullptr).width;
             cv::line(loginScreen, cv::Point(200 + textWidth + 5, 163), cv::Point(200 + textWidth + 5, 187), cv::Scalar(0, 0, 0), 2);
         }
-        cv::putText(loginScreen, loginData.password, cv::Point(205, 185), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 0), 2);
+        cv::putText(loginScreen, std::string(loginData.password.size(), '*'), cv::Point(205, 185), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 0), 2);
 
         // Draw register button
         cv::rectangle(loginScreen, cv::Rect(240, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
@@ -445,21 +488,29 @@ uchar* convertToPointer(std::vector<uchar>& vec) {
     return vec.data();
 }
 
+cv::Mat fullLikeButton;
+cv::Mat emptyLikeButton;
+
+void initializeLikeButtons() {
+    fullLikeButton = cv::imread("../full_like.png");
+    emptyLikeButton = cv::imread("../empty_like.png");
+}
+
 extern "C" void mainScreen() {
+    initializeLikeButtons();
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
     enableNonBlockingInput();
     cv::setMouseCallback("Main Screen", mainOnMouse);
     cv::imshow("Main Screen", mainScreen);
 
-    
     while (mainWindowVisible) {
         mainScreen = cv::Scalar(255, 255, 255);
 
         cv::Mat img(800, 800, CV_8UC3, cv::Scalar(255, 255, 255));
 
-        if (posts != nullptr) {
-            std::vector<uchar> imageVector = convertToVector(posts[0].image, sizes[0]);
+        if (posts != nullptr && currentPostIndex >= 0 && currentPostIndex < postCount) {
+            std::vector<uchar> imageVector = convertToVector(posts[currentPostIndex].image, sizes[currentPostIndex]);
             std::vector<uchar> binaryData = transformData(imageVector);
 
             cv::Mat new_img = cv::imdecode(binaryData, cv::IMREAD_COLOR);
@@ -471,46 +522,55 @@ extern "C" void mainScreen() {
             }
 
             img = new_img.clone();
+
+            // Print image dimensions
+            // std::cout << "Image dimensions: " << img.cols << "x" << img.rows << std::endl;
+
+            double aspect_ratio = (double)img.cols / (double)img.rows;
+
+            int max_width = 640;
+            int max_height = 480;
+
+            int new_width = max_width;
+            int new_height = static_cast<int>(max_width / aspect_ratio);
+            if (new_height > max_height) {
+                new_height = max_height;
+                new_width = static_cast<int>(max_height * aspect_ratio);
+            }
+
+            cv::Mat resizedImg;
+            cv::resize(img, resizedImg, cv::Size(new_width, new_height));
+
+            int x = (mainScreen.cols - resizedImg.cols) / 2;
+            int y = (mainScreen.rows - resizedImg.rows) / 2 - 75;
+
+            cv::Rect imageRect(x, y, resizedImg.cols, resizedImg.rows);
+
+            if (imageRect.x < 0 || imageRect.y < 0 || imageRect.x + imageRect.width > mainScreen.cols || imageRect.y + imageRect.height > mainScreen.rows) {
+                std::cout << "Invalid region for placing image." << std::endl;
+                return;
+            }
+
+            resizedImg.copyTo(mainScreen(imageRect));
+
+            // Display the username
+            std::string username = posts[currentPostIndex].userName;
+            cv::putText(mainScreen, username, cv::Point(mainScreen.cols / 2 - 20, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA, false);
+
+            // Display the description
+            std::string description = posts[currentPostIndex].description;
+            cv::putText(mainScreen, description, cv::Point(mainScreen.cols / 2 - 320, 615), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA, false);
+
+            // Display the like button
+            cv::Mat likeButton = posts[currentPostIndex].liked ? fullLikeButton : emptyLikeButton;
+            cv::Rect likeButtonRect(515, 635, likeButton.cols, likeButton.rows);
+            likeButton.copyTo(mainScreen(likeButtonRect));
+
+            // Display the like count
+            int likeCount = posts[currentPostIndex].likeCount;
+            std::string likeCountText = std::to_string(likeCount);
+            cv::putText(mainScreen, likeCountText, cv::Point(605, 675), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA, false);
         }
-
-        /* For comparing images
-        std::string filename = "output.txt";
-        std::string filename2 = "output2.txt";
-
-        // Print vector data to file
-        printVectorToFile(imageVector, filename);
-        printVectorToFile(binaryData, filename2);
-        */
-
-        // Print image dimensions
-        // std::cout << "Image dimensions: " << img.cols << "x" << img.rows << std::endl;
-
-        double aspect_ratio = (double)img.cols / (double)img.rows;
-
-        int max_width = 640;
-        int max_height = 480;
-
-        int new_width = max_width;
-        int new_height = static_cast<int>(max_width / aspect_ratio);
-        if (new_height > max_height) {
-            new_height = max_height;
-            new_width = static_cast<int>(max_height * aspect_ratio);
-        }
-
-        cv::Mat resizedImg;
-        cv::resize(img, resizedImg, cv::Size(new_width, new_height));
-
-        int x = (mainScreen.cols - resizedImg.cols) / 2;
-        int y = (mainScreen.rows - resizedImg.rows) / 2;
-
-        cv::Rect imageRect(x, y, resizedImg.cols, resizedImg.rows);
-
-        if (imageRect.x < 0 || imageRect.y < 0 || imageRect.x + imageRect.width > mainScreen.cols || imageRect.y + imageRect.height > mainScreen.rows) {
-            std::cout << "Invalid region for placing image." << std::endl;
-            return;
-        }
-
-        resizedImg.copyTo(mainScreen(imageRect));
 
         // Buttons
         cv::Rect leftButtonRect(100, 400, 100, 50);
@@ -537,7 +597,7 @@ extern "C" void mainScreen() {
         cv::imshow("Main Screen", mainScreen);
 
         // Wait for a key press
-        cv::waitKey(0);
+        cv::waitKey(1);
     }
     disableNonBlockingInput();
     cv::destroyWindow("Main Screen");
@@ -545,6 +605,7 @@ extern "C" void mainScreen() {
 
 std::vector<uchar> buffer;
 size_t image_size;
+const char SIGNAL_POST = 'P';
 
 extern "C" void createPostScreen () {
     originalImage = cv::Mat();
@@ -598,6 +659,9 @@ extern "C" void createPostScreen () {
         buttonX += 100 + buttonSpacing;
     }
 
+    cv::putText(postScreen, "Post Description:", cv::Point(20, 375), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2);
+    cv::rectangle(postScreen, cv::Rect(20, 400, 550, 50), cv::Scalar(0, 0, 0), 2);
+
     int leftSectionWidth = 600;
     cv::Rect leftSectionRect(0, 0, leftSectionWidth, postScreen.rows);
 
@@ -621,6 +685,15 @@ extern "C" void createPostScreen () {
     while(postWindowVisible) {
         cv::Mat reconstructed_image;
 
+        cv::putText(postScreen, "Post Description:", cv::Point(20, 375), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2);
+        cv::rectangle(postScreen, cv::Rect(20, 400, 550, 50), cv::Scalar(255, 255, 255), -1);
+
+        if (postData.isTypingDescription) {
+            int textWidth = cv::getTextSize(postData.description, cv::FONT_HERSHEY_SIMPLEX, 0.8, 2, nullptr).width;
+            cv::line(postScreen, cv::Point(25 + textWidth + 5, 410), cv::Point(25 + textWidth + 5, 440), cv::Scalar(0, 0, 0), 2);
+        }
+        cv::putText(postScreen, postData.description, cv::Point(25, 425), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
+
         if (resetRequested) {
             resetRequested = false;
             currentImage = originalImage.clone();
@@ -630,7 +703,19 @@ extern "C" void createPostScreen () {
             sendRequested = false;
             std::cout << "Actual send initiated" << std::endl;
 
-            if (send(serverSock, "post", strlen("post"), 0) == -1) {
+            if (send(serverSock, &SIGNAL_POST, sizeof(SIGNAL_POST), 0) == -1) {
+                perror("send failed");
+                exit(EXIT_FAILURE);
+            }
+
+            std::cout << "sent post signal" << std::endl;
+
+            char description[105];
+            strcpy(description, postData.description.c_str());
+
+            std::cout << "sent description: " << description << std::endl;
+
+            if (send(serverSock, description, strlen(description), 0) == -1) {
                 perror("send failed");
                 exit(EXIT_FAILURE);
             }
@@ -638,7 +723,6 @@ extern "C" void createPostScreen () {
             cv::imencode(postData.imageType, currentImage, buffer);
             image_size = buffer.size() + 1;
 
-            std::cout << "sent post signal" << std::endl;
             send(serverSock, &image_size, sizeof(size_t), 0);
             uchar* imageDataPointer = convertToPointer(buffer);
             size_t bytesSent = 0;
@@ -651,6 +735,24 @@ extern "C" void createPostScreen () {
                 }
                 bytesSent += sent;
             }
+            
+            std::cout << "sent picture" << std::endl;
+
+            postSuccessMessageVisible = true;
+            postSuccessMessageTime = std::chrono::steady_clock::now();
+        }
+
+        if (postSuccessMessageVisible) {
+            cv::putText(postScreen, "Post created successfully!", cv::Point(sendButtonX - 150, sendButtonY - 20), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+            auto currentTime = std::chrono::steady_clock::now();
+            auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - postSuccessMessageTime).count();
+            if (elapsedTime >= 2000) { // 2000 milliseconds = 2 seconds
+                postSuccessMessageVisible = false;
+                GoToMainScreenFromPost();
+            }
+        }
+        else {
+            cv::rectangle(postScreen, cv::Rect(sendButtonX - 150, sendButtonY - 40, 300, 30), cv::Scalar(255, 255, 255), -1);
         }
         
         if (image_uploaded) {
@@ -714,7 +816,16 @@ extern "C" void createPostScreen () {
         // Show the updated login screen
         cv::imshow("Post Screen", postScreen);
 
-        cv::waitKey(1);
+        char key = cv::waitKey(10);
+        if (key != -1 && postData.isTypingDescription) {
+            if (key == '\b' || key == 127) {  // Backspace key or Delete key
+                if (!postData.description.empty()) {
+                    postData.description.pop_back();
+                }
+            } else if (postData.description.size() < 100) { // Limit to 100 characters
+                postData.description += key;
+            }
+        }
     }
 
     disableNonBlockingInput();
