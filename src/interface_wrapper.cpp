@@ -488,16 +488,7 @@ uchar* convertToPointer(std::vector<uchar>& vec) {
     return vec.data();
 }
 
-cv::Mat fullLikeButton;
-cv::Mat emptyLikeButton;
-
-void initializeLikeButtons() {
-    fullLikeButton = cv::imread("../full_like.png");
-    emptyLikeButton = cv::imread("../empty_like.png");
-}
-
 extern "C" void mainScreen() {
-    initializeLikeButtons();
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
     enableNonBlockingInput();
@@ -562,7 +553,7 @@ extern "C" void mainScreen() {
             cv::putText(mainScreen, description, cv::Point(mainScreen.cols / 2 - 320, 615), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 0), 2, cv::LINE_AA, false);
 
             // Display the like button
-            cv::Mat likeButton = posts[currentPostIndex].liked ? fullLikeButton : emptyLikeButton;
+            cv::Mat likeButton(64, 64, CV_8UC3, cv::Scalar(0, 0, 0));
             cv::Rect likeButtonRect(515, 635, likeButton.cols, likeButton.rows);
             likeButton.copyTo(mainScreen(likeButtonRect));
 
