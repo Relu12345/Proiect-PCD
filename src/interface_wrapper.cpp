@@ -35,6 +35,8 @@ struct LoginData {
     LoginData() : isTypingUsername(false), isTypingPassword(false) {}
 };
 
+void refreshPosts();
+
 LoginData loginData;
 
 std::atomic<bool> loginWindowVisible(true);
@@ -45,6 +47,7 @@ std::atomic<bool> filterPressed(false);
 std::atomic<bool> resetRequested(false);
 std::atomic<bool> sendRequested(false);
 std::atomic<bool> postSuccessMessageVisible(false);
+std::atomic<bool> firstTime(true);
 std::chrono::steady_clock::time_point postSuccessMessageTime;
 
 
@@ -55,6 +58,9 @@ int postCount;
 Post* posts = nullptr;
 User user;
 size_t *sizes = nullptr;
+
+const char SIGNAL_POST = 'P';
+const char SIGNAL_GET_POST = 'G';
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -160,6 +166,9 @@ void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
             postWindowVisible = true;
             cv::destroyWindow("Main Screen");
             createPostScreen();
+        }
+        else if (x >= 10 && x <= 160 && y >= 10 && y <= 60) {
+            refreshPosts();
         }
         // Check if the click is within the left button
         else if (x >= 100 && x <= 200 && y >= 400 && y <= 450) {
@@ -358,6 +367,78 @@ void onKeyboard(char key) {
     }
 }
 
+void refreshPosts() {
+    if (send(serverSock, &SIGNAL_GET_POST, sizeof(SIGNAL_GET_POST), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+    // Receive the number of posts
+    int num_received_posts;
+    recv(serverSock, &num_received_posts, sizeof(int), 0);
+
+    if (num_received_posts == 0) {
+        printf("No posts received\n");
+        // Set posts to NULL and imageSizes to NULL
+        struct Post* posts = NULL;
+        size_t* imageSizes = NULL;
+        setPosts(posts, 0, imageSizes);
+    }
+    else {
+        // Allocate memory to hold the received posts
+        struct Post* posts = new Post[num_received_posts];
+        if (posts == NULL) {
+            perror("Memory error");
+            close(serverSock);
+            exit(EXIT_FAILURE);
+        }
+
+        size_t* imageSizes = new size_t[num_received_posts];
+        recv(serverSock, imageSizes, sizeof(size_t) * num_received_posts, 0);
+
+        // Receive and print each post
+        for (int i = 0; i < num_received_posts; i++) {
+            recv(serverSock, &(posts[i].id), sizeof(int), 0);
+            recv(serverSock, &(posts[i].userId), sizeof(int), 0);
+            size_t imageSize;
+            recv(serverSock, &imageSize, sizeof(size_t), 0);
+            posts[i].image = new unsigned char[imageSize];
+            if (posts[i].image == NULL) {
+                perror("Memory allocation failed for image data");
+                exit(EXIT_FAILURE);
+            }
+            size_t bytesReceived = 0;
+            while (bytesReceived < imageSize) {
+                size_t remainingBytes = imageSize - bytesReceived;
+                size_t bytesToReceive = remainingBytes > CHUNK_SIZE ? CHUNK_SIZE : remainingBytes;
+                int received = recv(serverSock, posts[i].image + bytesReceived, bytesToReceive, 0);
+                if (received <= 0) {
+                    if (received < 0) {
+                        perror("Failed to receive image data");
+                    } else {
+                        printf("Connection closed by client\n");
+                    }
+                    close(serverSock);
+                    exit(EXIT_FAILURE);
+                }
+                bytesReceived += received;
+            }
+            //recv(server_sock, posts[i].image, imageSize, 0);
+            int description_length;
+            recv(serverSock, &description_length, sizeof(int), 0);
+            posts[i].description = new char[description_length];
+            recv(serverSock, posts[i].description, description_length, 0);
+            int username_length;
+            recv(serverSock, &username_length, sizeof(int), 0);
+            posts[i].userName = new char[username_length];
+            recv(serverSock, posts[i].userName, username_length, 0);
+            recv(serverSock, &(posts[i].likeCount), sizeof(int), 0);
+            recv(serverSock, &(posts[i].liked), sizeof(int), 0);
+        }
+
+        setPosts(posts, num_received_posts, imageSizes);
+    }
+}
+
 extern "C" void createLoginScreen() {
     // Create a window
     cv::Mat loginScreen(300, 400, CV_8UC3, cv::Scalar(255, 255, 255));
@@ -489,6 +570,12 @@ uchar* convertToPointer(std::vector<uchar>& vec) {
 }
 
 extern "C" void mainScreen() {
+    if (firstTime) {
+        firstTime = false;
+    }
+    else {
+        refreshPosts();
+    }
     cv::Mat mainScreen(800, 1200, CV_8UC3, cv::Scalar(255,255,255));
     cv::namedWindow("Main Screen");
     enableNonBlockingInput();
@@ -564,6 +651,10 @@ extern "C" void mainScreen() {
         }
 
         // Buttons
+        cv::Rect refreshButtonRect(10, 10, 150, 50);
+        cv::rectangle(mainScreen, refreshButtonRect, cv::Scalar(203, 192, 255), -1);
+        cv::putText(mainScreen, "Refresh", cv::Point(25, 45), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
+
         cv::Rect leftButtonRect(100, 400, 100, 50);
         cv::rectangle(mainScreen, leftButtonRect, cv::Scalar(0, 0, 255), -1);
         cv::putText(mainScreen, "<", cv::Point(135, 435), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 255), 2);
@@ -596,7 +687,6 @@ extern "C" void mainScreen() {
 
 std::vector<uchar> buffer;
 size_t image_size;
-const char SIGNAL_POST = 'P';
 
 extern "C" void createPostScreen () {
     originalImage = cv::Mat();

@@ -18,6 +18,56 @@ typedef struct {
 
 int client_id = 0;
 
+void setPostServer(PGconn* conn, int client_sock, struct Post* posts, int id) {
+    // Get the number of posts
+    int num_posts = get_posts_counts(conn);
+
+    // Send the number of posts
+    send(client_sock, &num_posts, sizeof(int), 0);
+
+    if (num_posts != 0) {
+        size_t *imageSizes = malloc(sizeof(size_t) * num_posts);
+        struct Post* current_post = posts;
+        for (int i = 0; i < num_posts; i++) {
+            imageSizes[i] = (strlen(current_post->image) + 1);
+            current_post++;
+        }
+
+        send(client_sock, imageSizes, sizeof(size_t) * num_posts, 0);
+
+        current_post = posts;
+        // Iterate through the posts and send each post individually
+        for (int i = 0; i < num_posts; i++) {
+            send(client_sock, &(current_post->id), sizeof(int), 0);
+            send(client_sock, &(current_post->userId), sizeof(int), 0);
+            size_t imageSize = (strlen(current_post->image) + 1);
+            send(client_sock, &imageSize, sizeof(size_t), 0);
+            printf("sent image size: %zu\n", imageSize);
+            size_t bytesSent = 0;
+            while (bytesSent < imageSize) {
+                size_t bytesToSend = (CHUNK_SIZE < imageSize - bytesSent) ? CHUNK_SIZE : (imageSize - bytesSent);
+                int sent = send(client_sock, current_post->image + bytesSent, bytesToSend, 0);
+                if (sent < 0) {
+                    perror("Failed to send image data");
+                    printf("Client %d disconnected.\n", id);
+                    exit(EXIT_FAILURE);
+                }
+                bytesSent += sent;
+            }
+            // send(client_sock, current_post->image, imageSize, 0);
+            int description_length = strlen(current_post->description) + 1; // Include null terminator
+            send(client_sock, &description_length, sizeof(int), 0);
+            send(client_sock, current_post->description, description_length, 0);
+            int username_length = strlen(current_post->userName) + 1; // Include null terminator
+            send(client_sock, &username_length, sizeof(int), 0);
+            send(client_sock, current_post->userName, username_length, 0);
+            send(client_sock, &(current_post->likeCount), sizeof(int), 0);
+            send(client_sock, &(current_post->liked), sizeof(int), 0);
+            current_post++;
+        }
+    }
+}
+
 void *client_handler(void *arg) {
 
     const char *connstring = "host=dpg-cohr28ol5elc73csm2i0-a.frankfurt-postgres.render.com port=5432 dbname=pcd user=pcd_user password=OAGPeU3TKCHQ3hePtl69HSQNb8DiBbls";
@@ -117,53 +167,7 @@ void *client_handler(void *arg) {
     // Send user name to client
     send(client_sock, user.name, sizeof(user.name), 0);
 
-    // Get the number of posts
-    int num_posts = get_posts_counts(conn);
-
-    // Send the number of posts
-    send(client_sock, &num_posts, sizeof(int), 0);
-
-    if (num_posts != 0) {
-        size_t *imageSizes = malloc(sizeof(size_t) * num_posts);
-        struct Post* current_post = posts;
-        for (int i = 0; i < num_posts; i++) {
-            imageSizes[i] = (strlen(current_post->image) + 1);
-            current_post++;
-        }
-
-        send(client_sock, imageSizes, sizeof(size_t) * num_posts, 0);
-
-        current_post = posts;
-        // Iterate through the posts and send each post individually
-        for (int i = 0; i < num_posts; i++) {
-            send(client_sock, &(current_post->id), sizeof(int), 0);
-            send(client_sock, &(current_post->userId), sizeof(int), 0);
-            size_t imageSize = (strlen(current_post->image) + 1);
-            send(client_sock, &imageSize, sizeof(size_t), 0);
-            printf("sent image size: %zu\n", imageSize);
-            size_t bytesSent = 0;
-            while (bytesSent < imageSize) {
-                size_t bytesToSend = (CHUNK_SIZE < imageSize - bytesSent) ? CHUNK_SIZE : (imageSize - bytesSent);
-                int sent = send(client_sock, current_post->image + bytesSent, bytesToSend, 0);
-                if (sent < 0) {
-                    perror("Failed to send image data");
-                    printf("Client %d disconnected.\n", id);
-                    exit(EXIT_FAILURE);
-                }
-                bytesSent += sent;
-            }
-            // send(client_sock, current_post->image, imageSize, 0);
-            int description_length = strlen(current_post->description) + 1; // Include null terminator
-            send(client_sock, &description_length, sizeof(int), 0);
-            send(client_sock, current_post->description, description_length, 0);
-            int username_length = strlen(current_post->userName) + 1; // Include null terminator
-            send(client_sock, &username_length, sizeof(int), 0);
-            send(client_sock, current_post->userName, username_length, 0);
-            send(client_sock, &(current_post->likeCount), sizeof(int), 0);
-            send(client_sock, &(current_post->liked), sizeof(int), 0);
-            current_post++;
-        }
-    }
+    setPostServer(conn, client_sock, posts, id);
 
     char buffer[CHUNK_SIZE] = {0};
     char description[105] = {0};
@@ -248,6 +252,10 @@ void *client_handler(void *arg) {
             printf("Image inserted successfully!\n");
 
             free(imageData);
+        }
+        else if (strcmp(buffer, "G") == 0) {
+            posts = get_all_posts(conn, user.id);
+            setPostServer(conn, client_sock, posts, id);
         }
     }
 
