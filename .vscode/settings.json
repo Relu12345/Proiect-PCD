@@ -66,5 +66,8 @@
         "stop_token": "cpp",
         "cfenv": "cpp",
         "typeindex": "cpp"
-    }
+    },
+    "python.analysis.extraPaths": [
+        "./src"
+    ]
 }

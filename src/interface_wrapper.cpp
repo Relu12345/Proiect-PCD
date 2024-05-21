@@ -464,7 +464,7 @@ extern "C" void createLoginScreen() {
         loginScreen = cv::Scalar(255, 255, 255);
 
         // Draw labels
-        cv::putText(loginScreen, "Login", cv::Point(180, 50), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
+        cv::putText(loginScreen, "Login", cv::Point(150, 50), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 0), 2);
         cv::putText(loginScreen, usernameLabel, cv::Point(50, 120), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
         cv::putText(loginScreen, passwordLabel, cv::Point(50, 180), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
 
@@ -483,12 +483,12 @@ extern "C" void createLoginScreen() {
         }
         cv::putText(loginScreen, std::string(loginData.password.size(), '*'), cv::Point(205, 185), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 0), 2);
 
-        // Draw register button
-        cv::rectangle(loginScreen, cv::Rect(240, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
-        cv::putText(loginScreen, loginLabel, cv::Point(260, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
-
         // Draw login button
-        cv::rectangle(loginScreen, cv::Rect(50, 240, 160, 40), cv::Scalar(0, 0, 255), -1);
+        cv::rectangle(loginScreen, cv::Rect(240, 240, 100, 40), cv::Scalar(0, 0, 255), -1);
+        cv::putText(loginScreen, loginLabel, cv::Point(255, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+
+        // Draw register button
+        cv::rectangle(loginScreen, cv::Rect(40, 240, 160, 40), cv::Scalar(0, 0, 255), -1);
         cv::putText(loginScreen, registerLabel, cv::Point(70, 270), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
 
         // Show the updated login screen
@@ -541,8 +541,8 @@ std::vector<unsigned char> transformData(const std::vector<unsigned char>& input
     return outputData;
 }
 
-void printVectorToFile(const std::vector<uchar>& data, const std::string& filename) {
-    std::ofstream outputFile(filename, std::ios::binary);
+void printVectorToFile(const std::vector<uchar>& data, const std::string& filename, int index) {
+    std::ofstream outputFile(filename + std::to_string(index), std::ios::binary);
     if (!outputFile) {
         std::cerr << "Error opening file for writing: " << filename << std::endl;
         return;

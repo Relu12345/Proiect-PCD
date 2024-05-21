@@ -1,87 +1,165 @@
 import socket
+import interface
 import struct
-import cv2
-import numpy as np
-import tkinter as tk
-from tkinter import filedialog
 
-SERVER_ADDRESS = ('localhost', 8080)
+class User:
+    def __init__(self, user_id, name):
+        self.id = user_id
+        self.name = name
 
-def send_image(client_socket, image):
-    encoded_image = cv2.imencode('.jpg', image)[1].tobytes()
-    client_socket.sendall(struct.pack('l', len(encoded_image)))
-    client_socket.sendall(encoded_image)
+class Post:
+    def __init__(self, post_id, user_id, image, description, user_name, like_count, liked):
+        self.id = post_id
+        self.userId = user_id
+        self.image = image
+        self.description = description
+        self.userName = user_name
+        self.likeCount = like_count
+        self.liked = liked
 
-def receive_image(client_socket, width, height):
-    total_size = width * height
-    received_size = 0
+def receive_all(sock, n):
     data = b''
+    while len(data) < n:
+        packet = sock.recv(n - len(data))
+        if not packet:
+            return None
+        data += packet
+    return data
 
-    # Receive image data in chunks until all data is received
-    while received_size < total_size:
-        chunk = client_socket.recv(min(4096, total_size - received_size))
-        if not chunk:
-            raise ConnectionError("Connection closed by server")
-        data += chunk
-        received_size += len(chunk)
+def receive_posts(client_socket):
+    # Receive the number of posts
+    num_posts_data = receive_all(client_socket, 4)
+    num_posts = struct.unpack('I', num_posts_data)[0]
+    print(f"Received number of posts: {num_posts}")
 
-    if received_size != total_size:
-        raise ValueError("Received incomplete image data")
+    # Receive image sizes
+    image_sizes_data = receive_all(client_socket, 8 * num_posts)
+    image_sizes = struct.unpack(f'{num_posts}Q', image_sizes_data)
+    print(f"Received image sizes: {image_sizes}")
 
-    # Convert received data to grayscale image
-    grayscale_image = np.frombuffer(data, dtype=np.uint8).reshape((height, width))
-    return grayscale_image
+    posts = []
+    for i in range(num_posts):
+        post_id_data = receive_all(client_socket, 4)
+        post_id = struct.unpack('I', post_id_data)[0]
+        print(f"Received post ID ({i+1}/{num_posts}): {post_id}")
+
+        user_id_data = receive_all(client_socket, 4)
+        user_id = struct.unpack('I', user_id_data)[0]
+        print(f"Received user ID ({i+1}/{num_posts}): {user_id}")
+
+        image_size_data = receive_all(client_socket, 8)
+        image_size = struct.unpack('Q', image_size_data)[0]
+        print(f"Received image size ({i+1}/{num_posts}): {image_size}")
+
+        print("before receiving picture")
+        image_data_hex = receive_all(client_socket, image_size)
+
+        if len(image_data_hex) != image_size:
+            image_data_hex = image_data_hex[:image_size]
+
+        hex_end = len(image_data_hex)
+        for j in range(len(image_data_hex) - 1, -1, -1):
+            if chr(image_data_hex[j]).lower() in '0123456789abcdef':
+                hex_end = j + 1
+                break
+
+        image_data_hex = image_data_hex[:hex_end]
+
+        try:
+            image_data = transform_data(image_data_hex.decode('ascii'))
+        except ValueError as ve:
+            print(f"ValueError while transforming data: {ve}")
+            continue
+
+        if len(image_data) != image_size:
+            image_data = image_data[:image_size]
+
+        print("after picture received")
+
+        desc_len_data = receive_all(client_socket, 4)
+        desc_len = struct.unpack('I', desc_len_data)[0]
+        print(f"Received description length ({i+1}/{num_posts}): {desc_len}")
+
+        description_data = receive_all(client_socket, desc_len)
+        description = description_data.decode('utf-8')
+        print(f"Received description ({i+1}/{num_posts}): {description}")
+
+        username_len_data = receive_all(client_socket, 4)
+        username_len = struct.unpack('I', username_len_data)[0]
+        print(f"Received username length ({i+1}/{num_posts}): {username_len}")
+
+        username_data = receive_all(client_socket, username_len)
+        username = username_data.decode('utf-8')
+        print(f"Received username ({i+1}/{num_posts}): {username}")
+
+        like_count_data = receive_all(client_socket, 4)
+        like_count = struct.unpack('I', like_count_data)[0]
+        print(f"Received like count ({i+1}/{num_posts}): {like_count}")
+
+        liked_data = receive_all(client_socket, 4)
+        liked = bool(liked_data[0])
+        print(f"Received liked status ({i+1}/{num_posts}): {liked}")
+
+        posts.append(Post(post_id, user_id, image_data, description, username, like_count, liked))
+
+    return posts, image_sizes
+
+
+def receive_user_info(client_socket):
+    # Receive user ID
+    user_id_data = receive_all(client_socket, 4)
+    user_id = struct.unpack('I', user_id_data)[0]
+    print(f"Received user id: {user_id}")
+
+    # Receive username
+    username_data = receive_all(client_socket, 100)
+    username = username_data.split(b'\x00', 1)[0].decode('utf-8')
+    print(f"Received username: {username}")
+
+    return User(user_id, username)
+
+
+def hex_char_to_byte(hex_char):
+    if '0' <= hex_char <= '9':
+        return ord(hex_char) - ord('0')
+    elif 'a' <= hex_char <= 'f':
+        return ord(hex_char) - ord('a') + 10
+    elif 'A' <= hex_char <= 'F':
+        return ord(hex_char) - ord('A') + 10
+    else:
+        raise ValueError(f"Invalid hex character: {hex_char}")
+
+def transform_data(hex_data):
+    output_data = bytearray()
+    for i in range(2, len(hex_data), 2):
+        byte = (hex_char_to_byte(hex_data[i]) << 4) | hex_char_to_byte(hex_data[i + 1])
+        output_data.append(byte)
+    return bytes(output_data)
+
 
 def main():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
+    server_ip = "127.0.0.1"
+    server_port = 8080
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
     try:
-        client_socket.connect(SERVER_ADDRESS)
-        print("Connected to server.")
+        client_socket.connect((server_ip, server_port))
+        print("Connected to the server.")
 
-        choice = "1"
-        client_socket.sendall(choice.encode())
+        interface.create_login_screen(client_socket)
 
-        # User authentication
-        username = input("Enter username: ")
-        password = input("Enter password: ")
-        credentials = f"{username},{password}"
-        client_socket.sendall(credentials.encode())
-        
-        # Receive login result
-        login_result = client_socket.recv(1024).decode()
-        if login_result == "FAIL":
-            print("Login failed. Exiting.")
-            return
-        else:
-            print("Login successful. Proceeding.")
+        user = receive_user_info(client_socket)
 
-        file_path = filedialog.askopenfilename(title="Select an image", filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp *.gif")])
-        if not file_path:
-            print("No image selected. Exiting.")
-            return
-
-        image = cv2.imread(file_path)
-        cv2.imshow("Selected Image", image)
-        cv2.waitKey(0)
-
-        height, width, channels = image.shape
-
-        send_image(client_socket, image)
-        print("Image sent successfully.")
-        grayscale_image = receive_image(client_socket, width, height)
-        print("Image received successfully.")
-
-        # Display grayscale image
-        cv2.imshow("Grayscale Image", grayscale_image)
-        cv2.waitKey(0)
+        posts, image_sizes = receive_posts(client_socket)
+        interface.create_main_screen(user, posts)
 
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error:", e)
+
     finally:
         client_socket.close()
+        print("Socket closed.")
 
 if __name__ == "__main__":
     main()

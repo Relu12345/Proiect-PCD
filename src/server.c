@@ -106,6 +106,8 @@ void *client_handler(void *arg) {
 
     processClientInfo(message, username, password);
 
+    printf("user and pass \n\n%s\n%s\n\n", username, password);
+
     struct Post* posts = NULL;
     struct User user;
 
@@ -152,7 +154,7 @@ void *client_handler(void *arg) {
             printf("Successful login\n");
         } else {
             // Invalid login, we send a signal to the client to say this
-            send(client_sock, "FAIL", 4, 0);
+            send(client_sock, "FAIL", 7, 0);
             printf("Invalid login\n");
             printf("Client %d disconnected.\n", id);
             close(client_sock);
@@ -164,8 +166,12 @@ void *client_handler(void *arg) {
     // Send user id to client
     send(client_sock, &user.id, sizeof(user.id), 0);
 
+    printf("user id: %d\n", user.id);
+
     // Send user name to client
     send(client_sock, user.name, sizeof(user.name), 0);
+
+    printf("user name: %s\n", user.name);
 
     setPostServer(conn, client_sock, posts, id);
 
