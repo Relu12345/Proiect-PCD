@@ -111,7 +111,7 @@ def create_login_screen(client_socket):
 currentPostIndex = 0
 
 
-def create_main_screen(user, posts):
+def create_main_screen(user, posts, client_sock):
     def show_post(index):
         post = posts[index]
         try:
@@ -151,15 +151,18 @@ def create_main_screen(user, posts):
         show_post(currentPostIndex)
 
     def refresh_posts():
-        print("Refresh...")
-        # global posts
-        
-        # try:
-        #     new_posts = client.receive_posts()
-        #     posts = new_posts
-        #     first_post()
-        # except Exception as e:
-        #     print(f"Error refreshing posts: {e}")
+        try:
+            client_sock.sendall(b'G')
+            new_posts = client.receive_posts(client_sock)
+            if new_posts:
+                global posts, currentPostIndex
+                posts = new_posts
+                currentPostIndex = 0
+                show_post(currentPostIndex)
+            else:
+                print("No new posts received.")
+        except Exception as e:
+            print(f"Error refreshing posts: {e}")
 
 
     def new_post():
@@ -196,13 +199,13 @@ def create_main_screen(user, posts):
 
     # Description Label
     description_label = tk.Label(root, font=('Comic Sans MS', 12), bg='white', wraplength=640, justify=tk.CENTER)
-    description_label.place(relx=0.5, y=530, anchor=tk.N)
+    description_label.place(relx=0.5, y=600, anchor=tk.N)
 
     # Like Button and Count
     like_button = tk.Button(root, text="Like", command=toggle_like, width=8, height=2, bg='black', fg='white')
-    like_button.place(relx=0.5, y=600, anchor=tk.N)
+    like_button.place(relx=0.5, y=650, anchor=tk.N)
     like_count_label = tk.Label(root, font=('Comic Sans MS', 12), bg='white')
-    like_count_label.place(relx=0.5, y=650, anchor=tk.N)
+    like_count_label.place(relx=0.5, y=700, anchor=tk.N)
 
     # New Post Button
     new_post_button = tk.Button(root, text="New Post", command=new_post, width=16, height=2, bg='lightgreen')
