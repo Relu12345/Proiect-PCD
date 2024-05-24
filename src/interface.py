@@ -170,12 +170,22 @@ def create_main_screen(user, client_posts, client_sock, option):
 
     def toggle_like():
         post = posts[currentPostIndex]
-        if post.liked:
-            post.likeCount -= 1
-        else:
-            post.likeCount += 1
         post.liked = not post.liked
+
+        if post.liked:
+            post.likeCount += 1
+            # Send like signal to the server
+        else:
+            post.likeCount -= 1
+            # Send unlike signal to the server
+        send_like(post.id, user.id)
+
         show_post(currentPostIndex)
+
+    def send_like(post_id, user_id):
+        SIGNAL_LIKE = b"L"
+        send_data = SIGNAL_LIKE + struct.pack("ii", post_id, user_id)
+        client_sock.sendall(send_data)
 
     root = tk.Tk()
     root.title("Main Screen")

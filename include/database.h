@@ -50,6 +50,6 @@ int handle_error(const char* message);
 
 void* allocate_memory(size_t size);
 
-bool like_or_remove_like(PGconn* conn, int user_id, int post_id)
+bool like_or_remove_like(PGconn* conn, int user_id, int post_id);
 
 #endif /* DATABASE_H */
