@@ -283,7 +283,7 @@ void *client_handler(void *arg) {
                 pthread_exit(NULL);
             }
 
-            // Dau call la smecheria lu Rares
+            like_or_remove_like(conn, userId, postId);
         }
     }
 
