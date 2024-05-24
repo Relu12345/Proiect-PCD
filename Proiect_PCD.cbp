@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="Proiect_PCD"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\..\usr\;CMake Files\..\..\..\..\..\..\..\usr\local\;CMake Files\..\..\..\..\..\..\..\usr\local\lib\;CMake Files\..\..\..\..\..\..\..\usr\local\lib\cmake\;CMake Files\..\..\..\..\..\..\..\usr\local\lib\cmake\opencv4\;CMake Files\..\..\..\..\..\..\..\usr\share\;CMake Files\..\..\..\..\..\..\..\usr\share\cmake\;CMake Files\..\..\..\..\..\..\..\usr\share\cmake\nlohmann_json\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="database">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/libdatabase.so" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="3"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/usr/include/postgresql"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 database"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="database/fast">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/libdatabase.so" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="3"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/usr/include/postgresql"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 database/fast"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="server">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/server" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/mnt/c/Users/Pete/source/repos/Proiect-PCD/include"/>
+					<Add directory="/usr/include/postgresql"/>
+					<Add directory="/usr/local/include/opencv4"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 server"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="server/fast">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/server" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/mnt/c/Users/Pete/source/repos/Proiect-PCD/include"/>
+					<Add directory="/usr/include/postgresql"/>
+					<Add directory="/usr/local/include/opencv4"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 server/fast"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="client">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/client" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/mnt/c/Users/Pete/source/repos/Proiect-PCD/include"/>
+					<Add directory="/usr/include/postgresql"/>
+					<Add directory="/usr/local/include/opencv4"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 client"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="client/fast">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/client" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/mnt/c/Users/Pete/source/repos/Proiect-PCD/include"/>
+					<Add directory="/usr/include/postgresql"/>
+					<Add directory="/usr/local/include/opencv4"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 client/fast"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="admin">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/admin" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/mnt/c/Users/Pete/source/repos/Proiect-PCD/include"/>
+					<Add directory="/usr/include/postgresql"/>
+					<Add directory="/usr/local/include/opencv4"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 admin"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="admin/fast">
+				<Option output="/mnt/c/Users/Pete/source/repos/Proiect-PCD/admin" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/mnt/c/Users/Pete/source/repos/Proiect-PCD/include"/>
+					<Add directory="/usr/include/postgresql"/>
+					<Add directory="/usr/local/include/opencv4"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 admin/fast"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/mnt/c/Users/Pete/source/repos/Proiect-PCD"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -f &quot;/mnt/c/Users/Pete/source/repos/Proiect-PCD/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/admin.c">
+			<Option target="admin"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/client.c">
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/database.c">
+			<Option target="database"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/fistic_wrapper.cpp">
+			<Option target="server"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/image_prc_wrapper.cpp">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/interface_wrapper.cpp">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/login.c">
+			<Option target="server"/>
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/server.c">
+			<Option target="server"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/local/lib/cmake/opencv4/OpenCVConfig-version.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\local\lib\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/local/lib/cmake/opencv4/OpenCVConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\local\lib\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/local/lib/cmake/opencv4/OpenCVModules-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\local\lib\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/local/lib/cmake/opencv4/OpenCVModules.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\local\lib\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/share/cmake/nlohmann_json/nlohmann_jsonConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\share\cmake\nlohmann_json\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/share/cmake/nlohmann_json/nlohmann_jsonConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\share\cmake\nlohmann_json\"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/../../../../../../../usr/share/cmake/nlohmann_json/nlohmann_jsonTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\..\usr\share\cmake\nlohmann_json\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>

@@ -1,0 +1,6 @@
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/database.dir
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/server.dir
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/client.dir
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/admin.dir
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/edit_cache.dir
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/rebuild_cache.dir

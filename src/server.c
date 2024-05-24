@@ -9,7 +9,7 @@
 #include "connection.h"
 #include "interface_wrapper.h"
 #include "login.h"
-
+#include "fistic_wrapper.h"
 
 typedef struct {
     int id;
@@ -380,6 +380,12 @@ void *unix_server_thread(void *arg) {
     pthread_exit(NULL);
 }
 
+void *la_tzanki(void *arg) {
+
+    functie();
+    pthread_exit(NULL);
+}
+
 void *inet_server_thread(void *arg) {
     int serv_inet_sock, client_inet_sock;
     struct sockaddr_in inet_addr;
@@ -437,7 +443,7 @@ void *inet_server_thread(void *arg) {
 }
 
 int main() {
-    pthread_t unix_thread_id, inet_thread_id;
+    pthread_t unix_thread_id, inet_thread_id, la_tzanki_id;
 
     if (pthread_create(&unix_thread_id, NULL, unix_server_thread, NULL) != 0) {
         perror("pthread_create for UNIX server failed");
@@ -451,6 +457,17 @@ int main() {
 
     if (pthread_create(&inet_thread_id, NULL, inet_server_thread, NULL) != 0) {
         perror("pthread_create for INET server failed");
+        exit(EXIT_FAILURE);
+    }
+
+    
+    if (pthread_create(&la_tzanki_id, NULL, la_tzanki, NULL) != 0) {
+        perror("pthread_create for INET server failed");
+        exit(EXIT_FAILURE);
+    }
+
+     if (pthread_detach(la_tzanki_id) != 0) {
+        perror("pthread_detach for REST server failed");
         exit(EXIT_FAILURE);
     }
 

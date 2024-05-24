@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -g -shared -Wl,-soname,libdatabase.so -o libdatabase.so CMakeFiles/database.dir/src/database.c.o  -lpq 
