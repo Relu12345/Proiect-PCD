@@ -21,6 +21,53 @@ struct Post {
     bool liked;
 };
 
+bool like_or_remove_like(PGconn* conn, int user_id, int post_id) {
+    char query[100];
+    snprintf(query, sizeof(query), "SELECT ID FROM user_liked_post WHERE user_id = %d AND post_id = %d", user_id, post_id);
+
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+    
+    if (PQntuples(res) > 0) {
+        // Like exists, so delete it
+        char delete_query[100];
+        snprintf(delete_query, sizeof(delete_query), "DELETE FROM user_liked_post WHERE user_id = %d AND post_id = %d", user_id, post_id);
+
+        PGresult* delete_res = PQexec(conn, delete_query);
+
+        if (PQresultStatus(delete_res) != PGRES_COMMAND_OK) {
+            fprintf(stderr, "Error executing delete query: %s\n", PQerrorMessage(conn));
+            PQclear(delete_res);
+            PQclear(res);
+            return -1;
+        }
+
+        PQclear(delete_res);
+    } else {
+        char insert_query[100];
+        snprintf(insert_query, sizeof(insert_query), "INSERT INTO user_liked_post (post_id, user_id) VALUES (%d, %d)", post_id, user_id);
+
+        PGresult* insert_res = PQexec(conn, insert_query);
+
+        if (PQresultStatus(insert_res) != PGRES_COMMAND_OK) {
+            fprintf(stderr, "Error executing insert query: %s\n", PQerrorMessage(conn));
+            PQclear(insert_res);
+            PQclear(res);
+            return -1;
+        }
+
+        PQclear(insert_res);
+    }
+
+    PQclear(res);
+    return true;
+}
+
 int get_posts_counts(PGconn* conn) {
     int count = 0;
 
