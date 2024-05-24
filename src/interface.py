@@ -7,14 +7,15 @@ import io
 from PIL import Image, ImageTk
 import client
 
+currentPostIndex = 0
+posts = []
+
 def on_main_screen():
     # Add logic to open the main screen window
     print("Opening Main Screen")
 
-
 def send_message(client_socket, message):
     client_socket.sendall(message.encode())
-
 
 def on_login(client_socket, root):
     send_message(client_socket, "1")
@@ -33,7 +34,6 @@ def on_login(client_socket, root):
         messagebox.showerror("Login Failed", "Login failed. Please try again.")
         sys.exit(1)
 
-
 def on_register(client_socket, root):
     send_message(client_socket, "0")
     username = username_entry.get()
@@ -50,13 +50,11 @@ def on_register(client_socket, root):
     else:
         messagebox.showerror("Registration Failed", "Registration failed. Please try again.")
 
-
 def decode_image(image_data):
     # Assuming image_data is a bytes object containing the image data
     img_array = np.frombuffer(image_data, dtype=np.uint8)
     img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
     return img
-
 
 def resize_and_center_image(img, max_width, max_height):
     h, w = img.shape[:2]
@@ -69,7 +67,6 @@ def resize_and_center_image(img, max_width, max_height):
         new_width = int(max_height * aspect_ratio)
     resized_img = cv2.resize(img, (new_width, new_height))
     return resized_img
-
 
 def create_login_screen(client_socket):
     global username_entry, password_entry
@@ -107,11 +104,10 @@ def create_login_screen(client_socket):
     # Run the application
     root.mainloop()
 
+def create_main_screen(user, client_posts, client_sock):
+    global currentPostIndex, posts
+    posts = client_posts
 
-currentPostIndex = 0
-
-
-def create_main_screen(user, posts, client_sock):
     def show_post(index):
         post = posts[index]
         try:
@@ -151,19 +147,19 @@ def create_main_screen(user, posts, client_sock):
         show_post(currentPostIndex)
 
     def refresh_posts():
+        global posts, currentPostIndex
         try:
             client_sock.sendall(b'G')
             new_posts = client.receive_posts(client_sock)
             if new_posts:
-                global posts, currentPostIndex
-                posts = new_posts
+                posts.clear()  # Clear the existing posts
+                posts.extend(new_posts)  # Add the new posts to the existing list
                 currentPostIndex = 0
                 show_post(currentPostIndex)
             else:
                 print("No new posts received.")
         except Exception as e:
             print(f"Error refreshing posts: {e}")
-
 
     def new_post():
         print("Creating new post...")
