@@ -68,6 +68,7 @@
         "typeindex": "cpp"
     },
     "python.analysis.extraPaths": [
+        "./src",
         "./src"
     ]
 }

@@ -1,11 +1,14 @@
+import struct
 import sys
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import filedialog
 import cv2
 import numpy as np
 import io
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageOps
 import client
+import filters
 
 currentPostIndex = 0
 posts = []
@@ -104,7 +107,7 @@ def create_login_screen(client_socket):
     # Run the application
     root.mainloop()
 
-def create_main_screen(user, client_posts, client_sock):
+def create_main_screen(user, client_posts, client_sock, option):
     global currentPostIndex, posts
     posts = client_posts
 
@@ -162,7 +165,8 @@ def create_main_screen(user, client_posts, client_sock):
             print(f"Error refreshing posts: {e}")
 
     def new_post():
-        print("Creating new post...")
+        root.destroy()
+        create_post_screen(user, client_sock)
 
     def toggle_like():
         post = posts[currentPostIndex]
@@ -221,5 +225,177 @@ def create_main_screen(user, client_posts, client_sock):
     next_button.place(x=1000, y=450, anchor=tk.CENTER)
 
     show_post(currentPostIndex)
+
+    if option == 1:
+        refresh_posts()
+
+    root.mainloop()
+
+def create_post_screen(user, client_sock):
+    uploaded_image = None
+    current_filter = None
+
+    def upload_image():
+        nonlocal uploaded_image
+        file_path = filedialog.askopenfilename(title="Open Image File", filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
+        if file_path:
+            image = Image.open(file_path)
+            img_width, img_height = image.size
+            max_width = 640
+            max_height = 480
+
+            # Calculate resizing factor to maintain aspect ratio
+            width_ratio = max_width / img_width
+            height_ratio = max_height / img_height
+            resize_ratio = min(width_ratio, height_ratio)
+
+            # Resize image while maintaining aspect ratio
+            new_width = int(img_width * resize_ratio)
+            new_height = int(img_height * resize_ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Convert image to PhotoImage format
+            img = ImageTk.PhotoImage(image)
+
+            # Update the image label
+            image_label.config(image=img, width=new_width, height=new_height)
+            image_label.image = img
+
+            # Store the uploaded image
+            uploaded_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+    def apply_filter(filter_function):
+        nonlocal uploaded_image, current_filter
+        if uploaded_image is not None:
+            filtered_image = filter_function(uploaded_image)
+            filtered_image = cv2.cvtColor(filtered_image, cv2.COLOR_BGR2RGB)
+            img = ImageTk.PhotoImage(Image.fromarray(filtered_image))
+            image_label.config(image=img)
+            image_label.image = img
+            current_filter = filter_function
+
+    def cancel_action():
+        root.destroy()
+        create_main_screen(user, posts, client_sock, 1)
+
+    def reset_action():
+        nonlocal uploaded_image, current_filter
+        if uploaded_image is not None:
+            img = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(uploaded_image, cv2.COLOR_BGR2RGB)))
+            image_label.config(image=img)
+            image_label.image = img
+            current_filter = None
+
+    def send_post():
+        nonlocal uploaded_image  # Declare uploaded_image as non-local
+        SIGNAL_POST = b"P"
+        CHUNK_SIZE = 1024
+
+        description = post_desc_entry.get()
+
+        if not description or uploaded_image is None:
+            display_send_error()
+            return
+
+        print("Actual send initiated")
+
+        # Send signal POST
+        client_sock.sendall(SIGNAL_POST)
+
+        print("sent post signal")
+
+        # Send description
+        description_bytes = description.encode('utf-8')
+        client_sock.sendall(description_bytes)
+
+        print("sent description:", description)
+
+        # Apply current filter if any
+        if current_filter:
+            uploaded_image = current_filter(uploaded_image)
+
+        # Encode image
+        _, buffer = cv2.imencode('.jpg', uploaded_image)
+
+        uploaded_image_bytes = cv2.imencode('.jpg', uploaded_image)[1].tobytes()
+        uploaded_image_size = len(uploaded_image_bytes)
+        size_bytes = struct.pack("Q", uploaded_image_size)
+
+        # Send image size
+        client_sock.sendall(size_bytes)
+
+        # Send image data in chunks
+        bytes_sent = 0
+        while bytes_sent < uploaded_image_size:
+            bytes_to_send = min(CHUNK_SIZE, uploaded_image_size - bytes_sent)
+            sent = client_sock.send(uploaded_image_bytes[bytes_sent:bytes_sent + bytes_to_send])
+            if sent < 0:
+                print("Failed to send image data")
+            bytes_sent += sent
+
+        print("sent picture")
+
+        root.destroy()
+        create_main_screen(user, posts, client_sock, 1)
+
+    def display_send_error():
+        messagebox.showerror("Error", "Please enter a description and upload an image.")
+
+    root = tk.Tk()
+    root.title("Post Screen")
+    root.geometry("800x1200")
+    root.configure(bg='white')
+
+    left_frame = tk.Frame(root, bg='white')
+    left_frame.place(relx=0, rely=0, relwidth=0.5, relheight=1)
+
+    cancel_button = tk.Button(left_frame, text="Cancel", bg='red', command=cancel_action)
+    cancel_button.place(x=10, y=10)
+
+    upload_label = tk.Label(left_frame, text="Upload an image:", bg='white')
+    upload_label.place(relx=0.5, y=60, anchor='n')
+
+    upload_button = tk.Button(left_frame, text="Upload", bg='blue', command=upload_image)
+    upload_button.place(relx=0.5, y=160, anchor='n')
+
+    post_desc_label = tk.Label(left_frame, text="Post Description:", bg='white')
+    post_desc_label.place(x=10, y=200)
+
+    post_desc_entry = tk.Entry(left_frame)
+    post_desc_entry.place(x=10, y=230, relwidth=0.9)
+
+    def apply_filter(filter_function):
+        nonlocal uploaded_image, current_filter
+        if uploaded_image is not None:
+            filtered_image = filter_function(uploaded_image)
+            filtered_image = cv2.cvtColor(filtered_image, cv2.COLOR_BGR2RGB)
+            img = ImageTk.PhotoImage(Image.fromarray(filtered_image))
+            image_label.config(image=img)
+            image_label.image = img
+            current_filter = filter_function
+
+    filter_functions = [filters.applyNegative, filters.applySepia, filters.applyBlackAndWhite, filters.applyBlur,
+                        filters.applyCartoonEffect, filters.applyPencilSketch, filters.applyThermalVision,
+                        filters.applyEdgeDetection]
+
+    button_names = ["Negative", "Sepia", "Black & White", "Blur", "Cartoon", "Pencil Sketch", "Thermal Vision",
+                    "Edge Detection"]
+
+    for i, (name, func) in enumerate(zip(button_names, filter_functions)):
+        button = tk.Button(left_frame, text=name, command=lambda f=func: apply_filter(f))
+        button.place(x=10 + (i % 4) * 100, y=280 + (i // 4) * 50)
+
+    right_frame = tk.Frame(root, bg='white')
+    right_frame.place(relx=0.5, rely=0, relwidth=0.5, relheight=1)
+
+    # Ensure the image_label can expand to display the image properly
+    image_label = tk.Label(right_frame, bg='white')
+    image_label.place(relx=0.5, rely=0.1, anchor='n')
+
+    reset_button = tk.Button(right_frame, text="Reset", bg='green', command=reset_action)
+    reset_button.place(relx=0.5, y=740, anchor='n')
+
+    send_button = tk.Button(root, text="Send", bg="yellow", command=send_post)
+    send_button.place(relx=0.5, rely=0.7, anchor='center')
 
     root.mainloop()
