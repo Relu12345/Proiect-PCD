@@ -36,6 +36,7 @@ struct LoginData {
 };
 
 void refreshPosts();
+void sendLike(int postId, int userId);
 
 LoginData loginData;
 
@@ -61,6 +62,7 @@ size_t *sizes = nullptr;
 
 const char SIGNAL_POST = 'P';
 const char SIGNAL_GET_POST = 'G';
+const char SIGNAL_LIKE = 'L';
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -196,6 +198,7 @@ void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
             } else {
                 posts[currentPostIndex].likeCount--;
             }
+            sendLike(posts[currentPostIndex].id, user.id);
         }
     }
 }
@@ -364,6 +367,23 @@ void onKeyboard(char key) {
     } else if (isTypingPassword) {
         loginData.password += key;
         std::cout << '*';
+    }
+}
+
+void sendLike(int postId, int userId) {
+    if (send(serverSock, &SIGNAL_LIKE, sizeof(SIGNAL_LIKE), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (send(serverSock, &postId, sizeof(postId), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (send(serverSock, &userId, sizeof(userId), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
     }
 }
 

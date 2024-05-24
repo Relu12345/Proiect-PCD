@@ -165,7 +165,7 @@ def main():
         user = receive_user_info(client_socket)
 
         posts = receive_posts(client_socket)
-        interface.create_main_screen(user, posts, client_socket)
+        interface.create_main_screen(user, posts, client_socket, 0)
 
     except Exception as e:
         print("Error:", e)
