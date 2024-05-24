@@ -6,5 +6,6 @@
 #define SOCKETS_AVAILABLE 5
 #define MESSAGE_SIZE 1000000
 #define CHUNK_SIZE 1024
+#define ADMIN_PASSWORD "admin_password"
 
 #endif /* CONNECTION_H */

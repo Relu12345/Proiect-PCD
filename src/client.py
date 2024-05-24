@@ -102,7 +102,7 @@ def receive_posts(client_socket):
 
         posts.append(Post(post_id, user_id, image_data, description, username, like_count, liked))
 
-    return posts, image_sizes
+    return posts
 
 
 def receive_user_info(client_socket):
@@ -151,7 +151,7 @@ def main():
 
         user = receive_user_info(client_socket)
 
-        posts, image_sizes = receive_posts(client_socket)
+        posts = receive_posts(client_socket)
         interface.create_main_screen(user, posts)
 
     except Exception as e:

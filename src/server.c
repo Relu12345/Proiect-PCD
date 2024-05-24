@@ -17,6 +17,7 @@ typedef struct {
 } ClientInfo;
 
 int client_id = 0;
+int admin_connected = 0;
 
 void setPostServer(PGconn* conn, int client_sock, struct Post* posts, int id) {
     // Get the number of posts
@@ -271,6 +272,33 @@ void *client_handler(void *arg) {
     pthread_exit(NULL);
 }
 
+void *admin_handler(void *arg) {
+    ClientInfo *client_info = (ClientInfo *)arg;
+    int client_sock = client_info->sock_fd;
+    int id = client_info->id;
+
+    printf("Admin client connected.\n");
+
+    char buffer[100];
+    while (1) {
+        memset(buffer, 0, sizeof(buffer));
+        int received = recv(client_sock, buffer, sizeof(buffer) - 1, 0);
+        if (received <= 0) {
+            printf("Admin client disconnected.\n");
+            close(client_sock);
+            admin_connected = 0;
+            free(client_info);
+            pthread_exit(NULL);
+        }
+        printf("Admin: %s\n", buffer);
+    }
+
+    close(client_sock);
+    admin_connected = 0;
+    free(client_info);
+    pthread_exit(NULL);
+}
+
 void *unix_server_thread(void *arg) {
     int status = remove(SOCKET_NAME);
 
@@ -315,14 +343,35 @@ void *unix_server_thread(void *arg) {
             client_info->id = client_id++;
             client_info->sock_fd = client_unix_sock;
 
-            if (pthread_create(&thread_id, NULL, client_handler, (void *)client_info) != 0) {
-                perror("pthread_create failed");
-                close(client_unix_sock);
-            }
+            char buffer[100] = {0};
+            recv(client_unix_sock, buffer, sizeof(buffer) - 1, 0);
 
-            if (pthread_detach(thread_id) != 0) {
-                perror("pthread_detach failed");
-                close(client_unix_sock);
+            if (strcmp(buffer, ADMIN_PASSWORD) == 0) {
+                if (admin_connected == 0) {
+                    send(client_unix_sock, "Connected to server", strlen("Connected to server"), 0);
+                    admin_connected = 1;
+                    if (pthread_create(&thread_id, NULL, admin_handler, (void *)client_info) != 0) {
+                        perror("pthread_create failed");
+                        close(client_unix_sock);
+                    }
+                    if (pthread_detach(thread_id) != 0) {
+                        perror("pthread_detach failed");
+                        close(client_unix_sock);
+                    }
+                }
+                else {
+                    send(client_unix_sock, "Admin already connected", strlen("Admin already connected"), 0);
+                    close(client_unix_sock);
+                }
+            } else {
+                if (pthread_create(&thread_id, NULL, client_handler, (void *)client_info) != 0) {
+                    perror("pthread_create failed");
+                    close(client_unix_sock);
+                }
+                if (pthread_detach(thread_id) != 0) {
+                    perror("pthread_detach failed");
+                    close(client_unix_sock);
+                }
             }
         }
     }

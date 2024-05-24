@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import io
 from PIL import Image, ImageTk
+import client
 
 def on_main_screen():
     # Add logic to open the main screen window
@@ -150,7 +151,16 @@ def create_main_screen(user, posts):
         show_post(currentPostIndex)
 
     def refresh_posts():
-        print("Refreshing posts...")
+        print("Refresh...")
+        # global posts
+        
+        # try:
+        #     new_posts = client.receive_posts()
+        #     posts = new_posts
+        #     first_post()
+        # except Exception as e:
+        #     print(f"Error refreshing posts: {e}")
+
 
     def new_post():
         print("Creating new post...")

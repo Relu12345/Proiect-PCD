@@ -30,6 +30,12 @@ int main() {
 
     setSocket(server_sock);
 
+    if (send(server_sock, "CLIENT", strlen("CLIENT"), 0) == -1) {
+        perror("send error");
+        close(server_sock);
+        exit(EXIT_FAILURE);
+    }
+
     createLoginScreen();
 
     char response[10] = {0};
