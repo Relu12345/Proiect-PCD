@@ -842,11 +842,6 @@ extern "C" void createPostScreen () {
             cv::imencode(postData.imageType, image, buffer);
             image_size = buffer.size() + 1;
 
-            /* This is used for debug only
-            std::string filename = "output.txt";
-            printVectorToFile(buffer, filename);
-            */
-
             std::cout << "image size: " << image_size << std::endl;
             reconstructed_image = cv::imdecode(buffer, cv::IMREAD_COLOR);
 
