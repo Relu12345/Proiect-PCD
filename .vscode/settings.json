@@ -68,7 +68,16 @@
         "typeindex": "cpp",
         "fistic_wrapper.h": "c",
         "interface_wrapper.h": "c",
-        "endpoint.h": "c"
+        "endpoint.h": "c",
+        "ranges": "cpp",
+        "span": "cpp",
+        "any": "cpp",
+        "bitset": "cpp",
+        "codecvt": "cpp",
+        "forward_list": "cpp",
+        "unordered_set": "cpp",
+        "regex": "cpp",
+        "valarray": "cpp"
     },
     "python.analysis.extraPaths": [
         "./src",
