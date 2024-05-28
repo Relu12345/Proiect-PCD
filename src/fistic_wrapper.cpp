@@ -9,6 +9,7 @@
 #include <opencv4/opencv2/highgui.hpp>
 #include <iostream>
 #include <login.h>
+#include "base64.h" // Include the base64 library
 
 using json = nlohmann::json;
 using namespace Pistache;
@@ -45,113 +46,37 @@ struct User login_user(PGconn *conn, const char *username, const char *password,
     return user;
 }
 
-unsigned char *encodeImage2(const cv::Mat &image)
-{
+// Function to decode base64-encoded image data
+cv::Mat decodeBase64Image(const std::string& base64Image) {
+ // Decode base64 to bytes
+    std::string decoded = base64_decode(base64Image);
+    
+    // Convert bytes to a vector of bytes
+    std::vector<uchar> img_data(decoded.begin(), decoded.end());
+
+    // Decode vector of bytes to OpenCV image
+    cv::Mat img_cv2 = cv::imdecode(cv::Mat(img_data), cv::IMREAD_COLOR);
+    return img_cv2;
+}
+
+
+std::string cv2_to_base64(cv::Mat& image) {
     std::vector<uchar> buffer;
+    // Encode OpenCV image to JPEG format
     cv::imencode(".jpg", image, buffer);
-    unsigned char *encodedData = new unsigned char[buffer.size()];
-    std::copy(buffer.begin(), buffer.end(), encodedData);
-    return encodedData;
+    // Convert JPEG buffer to base64 string
+    std::string encoded_image = base64_encode(buffer.data(), buffer.size());
+    return encoded_image;
 }
 
-cv::Mat decodeImage2(const unsigned char *data, size_t size)
+cv::Mat applyNegative(const cv::Mat &inputImage)
 {
-    std::vector<uchar> buffer(data, data + size);
-    return cv::imdecode(buffer, cv::IMREAD_COLOR);
-}
-
-unsigned char *applyNegative(const unsigned char *data, size_t size)
-{
-    cv::Mat image = decodeImage2(data, size);
-    if (image.empty())
-    {
-        std::stringstream ss;
-        for (size_t i = 0; i < size; ++i)
-        {
-            ss << static_cast<int>(data[i]) << " ";
-        }
-        std::string imageDataStr = ss.str();
-
-        std::string errorMessage = "Decoded image is empty. Image size: " + std::to_string(size) + ". Image data: " + imageDataStr;
-        throw std::runtime_error(errorMessage);
-    }
-
     cv::Mat result;
-    cv::bitwise_not(image, result);
-    return encodeImage2(result);
-}
-
-std::vector<unsigned char> base64_decode(const std::string &encoded)
-{
-    static constexpr unsigned char kDecodingTable[] = {
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
-        64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64,
-        64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64};
-
-    size_t in_len = encoded.size();
-    if (in_len % 4 != 0)
-    {
-        throw std::runtime_error("Invalid base64 input");
+    cv::bitwise_not(inputImage, result);
+    if (result.channels() == 1) {
+        cv::cvtColor(result, result, cv::COLOR_GRAY2BGR);
     }
-
-    size_t out_len = in_len / 4 * 3;
-    if (encoded[in_len - 1] == '=')
-    {
-        out_len--;
-    }
-    if (encoded[in_len - 2] == '=')
-    {
-        out_len--;
-    }
-
-    std::vector<unsigned char> decoded(out_len);
-    for (size_t i = 0, j = 0; i < in_len;)
-    {
-        unsigned char a = encoded[i] == '=' ? 0 & i++ : kDecodingTable[encoded[i++] - 43];
-        unsigned char b = encoded[i] == '=' ? 0 & i++ : kDecodingTable[encoded[i++] - 43];
-        unsigned char c = encoded[i] == '=' ? 0 & i++ : kDecodingTable[encoded[i++] - 43];
-        unsigned char d = encoded[i] == '=' ? 0 & i++ : kDecodingTable[encoded[i++] - 43];
-
-        decoded[j++] = (a << 2) | (b >> 4);
-        if (j < out_len)
-        {
-            decoded[j++] = (b << 4) | (c >> 2);
-        }
-        if (j < out_len)
-        {
-            decoded[j++] = (c << 6) | d;
-        }
-    }
-
-    return decoded;
-}
-
-std::string base64_encode(const unsigned char *data, size_t length)
-{
-    static constexpr char kEncodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    std::string encoded;
-    encoded.reserve(((length + 2) / 3) * 4);
-
-    for (size_t i = 0; i < length;)
-    {
-        unsigned char a = i < length ? data[i++] : 0;
-        unsigned char b = i < length ? data[i++] : 0;
-        unsigned char c = i < length ? data[i++] : 0;
-
-        encoded.push_back(kEncodingTable[a >> 2]);
-        encoded.push_back(kEncodingTable[((a & 0x3) << 4) | (b >> 4)]);
-        encoded.push_back(kEncodingTable[((b & 0xf) << 2) | (c >> 6)]);
-        encoded.push_back(kEncodingTable[c & 0x3f]);
-    }
-
-    while (encoded.length() % 4)
-    {
-        encoded.push_back('=');
-    }
-
-    return encoded;
+    return result;
 }
 
 bool register_user(PGconn *conn, const char *username, const char *password)
@@ -415,15 +340,24 @@ public:
             auto jsonBody = json::parse(body);
 
             std::string imageData = jsonBody["image"].get<std::string>();
-            printf("%s", imageData);
-            std::vector<unsigned char> decodedData = base64_decode(imageData);
-            unsigned char *negativeImageData = applyNegative(decodedData.data(), decodedData.size());
-            size_t negativeImageSize = cv::imdecode(decodedData, cv::IMREAD_COLOR).total() * cv::imdecode(decodedData, cv::IMREAD_COLOR).elemSize();
-            std::string encodedNegativeImage = base64_encode(negativeImageData, negativeImageSize);
-            delete[] negativeImageData;
+            std::cout << "Image Data: " << imageData << std::endl;
+            // Decode base64-encoded image data
+            cv::Mat image = decodeBase64Image(imageData);
+            if (image.empty())
+            {
+                std::cerr << "Failed to decode image." << std::endl;
+                response.send(Http::Code::Bad_Request, "Failed to decode image.");
+                return;
+            }
+
+            // Apply negative filter
+            cv::Mat processedImage = applyNegative(image);
+
+            // Convert encoded buffer to base64 string
+            std::string processedBase64Image = cv2_to_base64(processedImage);
 
             json responseBody;
-            responseBody["image"] = encodedNegativeImage;
+            responseBody["image"] = processedBase64Image;
 
             response.send(Http::Code::Ok, responseBody.dump());
         }

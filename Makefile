@@ -205,6 +205,30 @@ src/admin.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/admin.dir/build.make CMakeFiles/admin.dir/src/admin.c.s
 .PHONY : src/admin.c.s
 
+src/base64.o: src/base64.cpp.o
+.PHONY : src/base64.o
+
+# target to build an object file
+src/base64.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/base64.cpp.o
+.PHONY : src/base64.cpp.o
+
+src/base64.i: src/base64.cpp.i
+.PHONY : src/base64.i
+
+# target to preprocess a source file
+src/base64.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/base64.cpp.i
+.PHONY : src/base64.cpp.i
+
+src/base64.s: src/base64.cpp.s
+.PHONY : src/base64.s
+
+# target to generate assembly for a file
+src/base64.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/base64.cpp.s
+.PHONY : src/base64.cpp.s
+
 src/client.o: src/client.c.o
 .PHONY : src/client.o
 
@@ -401,6 +425,9 @@ help:
 	@echo "... src/admin.o"
 	@echo "... src/admin.i"
 	@echo "... src/admin.s"
+	@echo "... src/base64.o"
+	@echo "... src/base64.i"
+	@echo "... src/base64.s"
 	@echo "... src/client.o"
 	@echo "... src/client.i"
 	@echo "... src/client.s"

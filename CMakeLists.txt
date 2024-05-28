@@ -19,7 +19,7 @@ target_include_directories(login PRIVATE ${PostgreSQL_INCLUDE_DIRS})
 target_link_libraries(login PRIVATE ${PostgreSQL_LIBRARIES})
 
 # Add executable for server
-add_executable(server src/server.c src/interface_wrapper.cpp src/login.c src/image_prc_wrapper.cpp src/fistic_wrapper.cpp)
+add_executable(server src/server.c src/base64.cpp src/interface_wrapper.cpp src/login.c src/image_prc_wrapper.cpp src/fistic_wrapper.cpp)
 target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${OpenCV_INCLUDE_DIRS} ${PostgreSQL_INCLUDE_DIRS})
 target_link_libraries(server PRIVATE ${OpenCV_LIBS} ${PostgreSQL_LIBRARIES} pthread database pistache nlohmann_json::nlohmann_json login)
 

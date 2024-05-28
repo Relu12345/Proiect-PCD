@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/login.c" "CMakeFiles/server.dir/src/login.c.o" "gcc" "CMakeFiles/server.dir/src/login.c.o.d"
   "/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/server.c" "CMakeFiles/server.dir/src/server.c.o" "gcc" "CMakeFiles/server.dir/src/server.c.o.d"
+  "/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/base64.cpp" "CMakeFiles/server.dir/src/base64.cpp.o" "gcc" "CMakeFiles/server.dir/src/base64.cpp.o.d"
   "/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/fistic_wrapper.cpp" "CMakeFiles/server.dir/src/fistic_wrapper.cpp.o" "gcc" "CMakeFiles/server.dir/src/fistic_wrapper.cpp.o.d"
   "/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/image_prc_wrapper.cpp" "CMakeFiles/server.dir/src/image_prc_wrapper.cpp.o" "gcc" "CMakeFiles/server.dir/src/image_prc_wrapper.cpp.o.d"
   "/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/interface_wrapper.cpp" "CMakeFiles/server.dir/src/interface_wrapper.cpp.o" "gcc" "CMakeFiles/server.dir/src/interface_wrapper.cpp.o.d"

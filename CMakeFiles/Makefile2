@@ -142,12 +142,12 @@ CMakeFiles/server.dir/all: CMakeFiles/database.dir/all
 CMakeFiles/server.dir/all: CMakeFiles/login.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=12,13,14,15,16,17 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=12,13,14,15,16,17,18 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 11
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/server.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 0
 .PHONY : CMakeFiles/server.dir/rule

@@ -283,6 +283,9 @@
 		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/admin.c">
 			<Option target="admin"/>
 		</Unit>
+		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/base64.cpp">
+			<Option target="server"/>
+		</Unit>
 		<Unit filename="/mnt/c/Users/Pete/source/repos/Proiect-PCD/src/client.c">
 			<Option target="client"/>
 		</Unit>

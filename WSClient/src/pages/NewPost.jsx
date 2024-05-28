@@ -14,6 +14,7 @@ const Login = () => {
     const [image, setImage] = useState(null);
     const [description, setDescription] = useState('');
     const [filter, setFilter] = useState(null);
+    const [header, setHeader] = useState(null);
     const navigate = useNavigate();
 
     const handleImageChange = async(e) => {
@@ -24,9 +25,15 @@ const Login = () => {
         setDescription(e.target.value);
     };
 
-    const applyFilter = (filterType) => {
+    const applyFilter = async(filterType) => {
         if (image) {
-            post(filterType, { image: image.split("base64,")[1] });
+            const [header, imageContent] = image.split("base64,");
+            setHeader(header + "base64,")
+            const res = await post(filterType, { image: imageContent});
+            console.info("am trimis: ", imageContent)
+            const processedImage = await res.json();
+            console.info("am primit: ", processedImage.image)
+            setImage(header + processedImage.image);
         } else {
             alert('Please upload an image first.');
         }

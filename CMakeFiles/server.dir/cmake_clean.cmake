@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/server.dir/src/base64.cpp.o"
+  "CMakeFiles/server.dir/src/base64.cpp.o.d"
   "CMakeFiles/server.dir/src/fistic_wrapper.cpp.o"
   "CMakeFiles/server.dir/src/fistic_wrapper.cpp.o.d"
   "CMakeFiles/server.dir/src/image_prc_wrapper.cpp.o"
