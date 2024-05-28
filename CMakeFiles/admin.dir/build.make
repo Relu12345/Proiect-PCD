@@ -101,6 +101,7 @@ admin: /usr/local/lib/libopencv_stitching.so.4.9.0
 admin: /usr/local/lib/libopencv_video.so.4.9.0
 admin: /usr/local/lib/libopencv_videoio.so.4.9.0
 admin: libdatabase.so
+admin: liblogin.so
 admin: /usr/local/lib/libopencv_imgcodecs.so.4.9.0
 admin: /usr/local/lib/libopencv_dnn.so.4.9.0
 admin: /usr/local/lib/libopencv_calib3d.so.4.9.0

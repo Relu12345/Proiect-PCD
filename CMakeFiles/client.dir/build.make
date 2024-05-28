@@ -149,6 +149,7 @@ client: /usr/local/lib/libopencv_stitching.so.4.9.0
 client: /usr/local/lib/libopencv_video.so.4.9.0
 client: /usr/local/lib/libopencv_videoio.so.4.9.0
 client: libdatabase.so
+client: liblogin.so
 client: /usr/local/lib/libopencv_imgcodecs.so.4.9.0
 client: /usr/local/lib/libopencv_dnn.so.4.9.0
 client: /usr/local/lib/libopencv_calib3d.so.4.9.0

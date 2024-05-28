@@ -1,4 +1,5 @@
 /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/database.dir
+/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/login.dir
 /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/server.dir
 /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/client.dir
 /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles/admin.dir

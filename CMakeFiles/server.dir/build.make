@@ -166,6 +166,7 @@ server: /usr/local/lib/libopencv_video.so.4.9.0
 server: /usr/local/lib/libopencv_videoio.so.4.9.0
 server: /usr/lib/x86_64-linux-gnu/libpq.so
 server: libdatabase.so
+server: liblogin.so
 server: /usr/local/lib/libopencv_imgcodecs.so.4.9.0
 server: /usr/local/lib/libopencv_dnn.so.4.9.0
 server: /usr/local/lib/libopencv_calib3d.so.4.9.0

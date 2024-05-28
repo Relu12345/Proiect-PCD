@@ -130,6 +130,19 @@ database/fast:
 .PHONY : database/fast
 
 #=============================================================================
+# Target rules for targets named login
+
+# Build rule for target.
+login: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 login
+.PHONY : login
+
+# fast build rule for target.
+login/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/build
+.PHONY : login/fast
+
+#=============================================================================
 # Target rules for targets named server
 
 # Build rule for target.
@@ -323,6 +336,7 @@ src/login.o: src/login.c.o
 
 # target to build an object file
 src/login.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/src/login.c.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/login.c.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/login.c.o
 .PHONY : src/login.c.o
@@ -332,6 +346,7 @@ src/login.i: src/login.c.i
 
 # target to preprocess a source file
 src/login.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/src/login.c.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/login.c.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/login.c.i
 .PHONY : src/login.c.i
@@ -341,6 +356,7 @@ src/login.s: src/login.c.s
 
 # target to generate assembly for a file
 src/login.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/src/login.c.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/login.c.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/login.c.s
 .PHONY : src/login.c.s
@@ -380,6 +396,7 @@ help:
 	@echo "... admin"
 	@echo "... client"
 	@echo "... database"
+	@echo "... login"
 	@echo "... server"
 	@echo "... src/admin.o"
 	@echo "... src/admin.i"

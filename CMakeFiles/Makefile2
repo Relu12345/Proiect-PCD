@@ -64,6 +64,7 @@ CMAKE_BINARY_DIR = /mnt/c/Users/Pete/source/repos/Proiect-PCD
 
 # The main recursive "all" target.
 all: CMakeFiles/database.dir/all
+all: CMakeFiles/login.dir/all
 all: CMakeFiles/server.dir/all
 all: CMakeFiles/client.dir/all
 all: CMakeFiles/admin.dir/all
@@ -75,6 +76,7 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/database.dir/clean
+clean: CMakeFiles/login.dir/clean
 clean: CMakeFiles/server.dir/clean
 clean: CMakeFiles/client.dir/clean
 clean: CMakeFiles/admin.dir/clean
@@ -107,18 +109,45 @@ CMakeFiles/database.dir/clean:
 .PHONY : CMakeFiles/database.dir/clean
 
 #=============================================================================
+# Target rules for target CMakeFiles/login.dir
+
+# All Build rule for target.
+CMakeFiles/login.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=10,11 "Built target login"
+.PHONY : CMakeFiles/login.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/login.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/login.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 0
+.PHONY : CMakeFiles/login.dir/rule
+
+# Convenience name for target.
+login: CMakeFiles/login.dir/rule
+.PHONY : login
+
+# clean rule for target.
+CMakeFiles/login.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/login.dir/build.make CMakeFiles/login.dir/clean
+.PHONY : CMakeFiles/login.dir/clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/server.dir
 
 # All Build rule for target.
 CMakeFiles/server.dir/all: CMakeFiles/database.dir/all
+CMakeFiles/server.dir/all: CMakeFiles/login.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=10,11,12,13,14,15 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=12,13,14,15,16,17 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 8
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 10
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/server.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 0
 .PHONY : CMakeFiles/server.dir/rule
@@ -137,6 +166,7 @@ CMakeFiles/server.dir/clean:
 
 # All Build rule for target.
 CMakeFiles/client.dir/all: CMakeFiles/database.dir/all
+CMakeFiles/client.dir/all: CMakeFiles/login.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=3,4,5,6,7 "Built target client"
@@ -144,7 +174,7 @@ CMakeFiles/client.dir/all: CMakeFiles/database.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/client.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 7
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 9
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/client.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 0
 .PHONY : CMakeFiles/client.dir/rule
@@ -163,6 +193,7 @@ CMakeFiles/client.dir/clean:
 
 # All Build rule for target.
 CMakeFiles/admin.dir/all: CMakeFiles/database.dir/all
+CMakeFiles/admin.dir/all: CMakeFiles/login.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/admin.dir/build.make CMakeFiles/admin.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/admin.dir/build.make CMakeFiles/admin.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles --progress-num=1,2 "Built target admin"
@@ -170,7 +201,7 @@ CMakeFiles/admin.dir/all: CMakeFiles/database.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/admin.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 4
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/admin.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/c/Users/Pete/source/repos/Proiect-PCD/CMakeFiles 0
 .PHONY : CMakeFiles/admin.dir/rule

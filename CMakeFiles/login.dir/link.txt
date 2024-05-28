@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -g -shared -Wl,-soname,liblogin.so -o liblogin.so CMakeFiles/login.dir/src/login.c.o  -lpq 

@@ -5,9 +5,122 @@
 #include <database.h>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/hal/interface.h>
+#include <login.h>
 
 using json = nlohmann::json;
 using namespace Pistache;
+
+struct User login_user(PGconn *conn, const char *username, const char *password, int *returnCode)
+{
+    struct User user;
+    const char *params[] = {username, password};
+    const char *query = "SELECT id, name FROM users WHERE name = $1 AND password = $2";
+    PGresult *res = PQexecParams(conn, query, 2, NULL, params, NULL, NULL, 0);
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        if (PQresultStatus(res) == PGRES_NONFATAL_ERROR)
+        {
+            fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        }
+        PQclear(res);
+        *returnCode = 1;
+        return user;
+    }
+
+    int num_rows = PQntuples(res);
+
+    if (num_rows != 1)
+    {
+        PQclear(res);
+        return user;
+    }
+    user.id = atoi(PQgetvalue(res, 0, 0));
+    strcpy(user.name, PQgetvalue(res, 0, 1));
+
+    *returnCode = 0;
+    PQclear(res);
+    return user;
+}
+
+bool register_user(PGconn *conn, const char *username, const char *password)
+{
+    if (username == NULL || username[0] == '\0' || password == NULL || password[0] == '\0')
+    {
+        fprintf(stderr, "Error: Username and password cannot be empty.\n");
+        return false;
+    }
+
+    const char *params[] = {username, password};
+    const char *query = "INSERT INTO users (name, password) VALUES ($1, $2)";
+
+    PGresult *res = PQexecParams(conn, query, 2, NULL, params, NULL, NULL, 0);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        if (PQresultStatus(res) == PGRES_NONFATAL_ERROR)
+        {
+            fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        }
+        PQclear(res);
+        return false;
+    }
+
+    PQclear(res);
+    return true;
+}
+
+bool like_or_remove_like(PGconn *conn, int user_id, int post_id)
+{
+    char query[100];
+    snprintf(query, sizeof(query), "SELECT ID FROM user_liked_post WHERE user_id = %d AND post_id = %d", user_id, post_id);
+
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+
+    if (PQntuples(res) > 0)
+    {
+        // Like exists, so delete it
+        char delete_query[100];
+        snprintf(delete_query, sizeof(delete_query), "DELETE FROM user_liked_post WHERE user_id = %d AND post_id = %d", user_id, post_id);
+
+        PGresult *delete_res = PQexec(conn, delete_query);
+
+        if (PQresultStatus(delete_res) != PGRES_COMMAND_OK)
+        {
+            fprintf(stderr, "Error executing delete query: %s\n", PQerrorMessage(conn));
+            PQclear(delete_res);
+            PQclear(res);
+            return -1;
+        }
+
+        PQclear(delete_res);
+    }
+    else
+    {
+        char insert_query[100];
+        snprintf(insert_query, sizeof(insert_query), "INSERT INTO user_liked_post (post_id, user_id) VALUES (%d, %d)", post_id, user_id);
+
+        PGresult *insert_res = PQexec(conn, insert_query);
+
+        if (PQresultStatus(insert_res) != PGRES_COMMAND_OK)
+        {
+            fprintf(stderr, "Error executing insert query: %s\n", PQerrorMessage(conn));
+            PQclear(insert_res);
+            PQclear(res);
+            return -1;
+        }
+
+        PQclear(insert_res);
+    }
+
+    PQclear(res);
+    return true;
+}
 
 unsigned char hexCharToByte2(char hex)
 {
@@ -69,9 +182,11 @@ public:
 
     void onRequest(const Http::Request &request, Http::ResponseWriter response) override
     {
-        struct Post *posts = nullptr;
-        struct User user;
-        if (!conn)
+        Http::Header::Collection &headers = response.headers();
+        headers.add<Http::Header::AccessControlAllowOrigin>("*");
+        headers.add<Http::Header::AccessControlAllowMethods>("GET, POST, PUT, DELETE, OPTIONS");
+        headers.add<Http::Header::AccessControlAllowHeaders>("Content-Type, Accept, application/json");
+        if (!conn || PQstatus(conn) != CONNECTION_OK)
         {
             response.send(Http::Code::Service_Unavailable, "Database connection failed\n");
             return;
@@ -81,22 +196,91 @@ public:
         {
             response.send(Http::Code::Ok, "Hello, World\n");
         }
-        else if (request.resource() == "/users")
+        else if (request.resource() == "/login" && request.method() == Http::Method::Post)
         {
-            posts = get_all_posts(conn, 2);
+            auto body = request.body();
+            auto jsonBody = json::parse(body);
+            int loginResult = 1;
+
+            std::string username = jsonBody.at("username").get<std::string>();
+            std::string password = jsonBody.at("password").get<std::string>();
+
+            char *c_username = (char *)username.c_str();
+            char *c_password = (char *)password.c_str();
+
+            struct User user = login_user(conn, c_username, c_password, &loginResult);
+
+            json postJson;
+
+            if (loginResult)
+            {
+                json postJson = loginResult;
+                response.send(Http::Code::Unauthorized, postJson.dump());
+            }
+            else
+            {
+                postJson["id"] = user.id;
+                postJson["name"] = std::string(user.name);
+                response.send(Http::Code::Ok, postJson.dump());
+                memset(c_username, 0, sizeof(c_username));
+                memset(c_password, 0, sizeof(c_password));
+            }
+        }
+        else if (request.resource() == "/register" && request.method() == Http::Method::Post)
+        {
+            auto body = request.body();
+            auto jsonBody = json::parse(body);
+            int loginResult = 1;
+
+            std::string username = jsonBody.at("username").get<std::string>();
+            std::string password = jsonBody.at("password").get<std::string>();
+
+            char *c_username = (char *)username.c_str();
+            char *c_password = (char *)password.c_str();
+
+            bool status = register_user(conn, c_username, c_password);
+            if (status)
+            {
+                json postJson = status;
+                response.send(Http::Code::Ok, postJson.dump());
+            }
+            else
+            {
+                json postJson = status;
+                response.send(Http::Code::Conflict, postJson.dump());
+            }
+        }
+
+        else if (request.resource() == "/like" && request.method() == Http::Method::Post)
+        {
+            auto body = request.body();
+            auto jsonBody = json::parse(body);
+            int loginResult = 1;
+
+            int postId = jsonBody.at("postId").get<int>();
+            int userId = jsonBody.at("userId").get<int>();
+
+            bool status = like_or_remove_like(conn, userId, postId);
+            json postJson = status;
+            response.send(Http::Code::Ok, postJson.dump());
+        }
+
+        else if (request.resource() == "/posts")
+        {
+            struct Post *posts = get_all_posts(conn, 2);
             if (posts)
             {
                 json postsJson;
                 for (int i = 0; posts[i].id != 0; ++i)
                 {
                     printf("%s", posts[i].description);
-                    std::vector<uchar> imageVector = convertToVector2(posts[i].image, strlen((char*)posts[i].image));
+                    std::vector<uchar> imageVector = convertToVector2(posts[i].image, strlen((char *)posts[i].image));
                     std::vector<uchar> binaryData = transformData2(imageVector);
 
                     json postJson;
                     postJson["id"] = posts[i].id;
                     postJson["title"] = posts[i].userId;
-                    postJson["image2"] = binaryData;
+                    postJson["image"] = binaryData;
                     postJson["description"] = posts[i].description;
                     postJson["userName"] = posts[i].userName;
                     postJson["likeCount"] = posts[i].likeCount;
