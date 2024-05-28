@@ -16,7 +16,6 @@
 #include "database.h"
 #include "connection.h"
 #include <cstddef>
-#include "image_prc_wrapper.hpp"
 
 struct PostData {
     std::string imagePath;
@@ -36,6 +35,7 @@ struct LoginData {
 };
 
 void refreshPosts();
+void sendLike(int postId, int userId);
 
 LoginData loginData;
 
@@ -61,6 +61,96 @@ size_t *sizes = nullptr;
 
 const char SIGNAL_POST = 'P';
 const char SIGNAL_GET_POST = 'G';
+const char SIGNAL_LIKE = 'L';
+const char SIGNAL_FILTER = 'F';
+
+typedef unsigned char uchar;
+std::vector<uchar> buffer;
+size_t image_size;
+
+std::vector<uchar> convertToVector(const uchar* data, size_t size) {
+    // Initialize vector with data from the array
+    return std::vector<uchar>(data, data + size);
+}
+
+uchar* convertToPointer(std::vector<uchar>& vec) {
+    // Return a pointer to the beginning of the vector's data
+    return vec.data();
+}
+
+unsigned char hexCharToByte(char hex) {
+    if (hex >= '0' && hex <= '9') {
+        return hex - '0';
+    } else if (hex >= 'a' && hex <= 'f') {
+        return hex - 'a' + 10;
+    } else if (hex >= 'A' && hex <= 'F') {
+        return hex - 'A' + 10;
+    }
+    return 0; // Error
+}
+
+std::vector<unsigned char> transformData(const std::vector<unsigned char>& inputData) {
+    std::vector<unsigned char> outputData;
+    for (size_t i = 2; i < inputData.size(); i += 2) {
+        unsigned char value = (hexCharToByte(inputData[i]) << 4) | hexCharToByte(inputData[i + 1]);
+        outputData.push_back(value);
+    }
+    return outputData;
+}
+
+void sendImage(int client_sock, const std::vector<uchar>& image, size_t imageSize) {
+    std::cout << "in send image" << std::endl;
+    
+    // Send the image size
+    send(client_sock, &imageSize, sizeof(size_t), 0);
+
+    std::cout << "sent image size: " << imageSize << std::endl;
+
+    // Convert vector to pointer
+    uchar* imageDataPointer = convertToPointer(const_cast<std::vector<uchar>&>(image));
+
+    // Send the image data in chunks
+    size_t bytesSent = 0;
+    while (bytesSent < imageSize) {
+        size_t bytesToSend = std::min((size_t) CHUNK_SIZE, imageSize - bytesSent);
+        ssize_t sent = send(client_sock, imageDataPointer + bytesSent, bytesToSend, 0);
+        if (sent < 0) {
+            perror("Failed to send image data");
+            exit(EXIT_FAILURE);
+        }
+        bytesSent += sent;
+    }
+
+    std::cout << "image sent succesfully!" << std::endl;
+}
+
+std::vector<uchar> receiveImage(int client_sock) {
+    size_t imageSize;
+
+    // Receive the image size
+    recv(client_sock, &imageSize, sizeof(size_t), 0);
+
+    std::cout << "received image size: " << imageSize << std::endl;
+
+    // Allocate memory for the image
+    std::vector<uchar> image(imageSize);
+
+    // Receive the image data in chunks
+    size_t bytesReceived = 0;
+    while (bytesReceived < imageSize) {
+        size_t bytesToReceive = std::min((size_t) CHUNK_SIZE, imageSize - bytesReceived);
+        ssize_t received = recv(client_sock, image.data() + bytesReceived, bytesToReceive, 0);
+        if (received < 0) {
+            perror("Failed to receive image data");
+            exit(EXIT_FAILURE);
+        }
+        bytesReceived += received;
+    }
+
+    std::cout << "image received succesfully!" << std::endl;
+    
+    return image;
+}
 
 // Function to send message to client
 void sendLoginInfoToServer(int choice, const char* user, const char* pass) {
@@ -196,6 +286,7 @@ void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
             } else {
                 posts[currentPostIndex].likeCount--;
             }
+            sendLike(posts[currentPostIndex].id, user.id);
         }
     }
 }
@@ -228,72 +319,42 @@ void postOnMouse(int event, int x, int y, int flags, void* userdata) {
                 int buttonY = (i < 4) ? 500 : 600;
                 if (i == 4) buttonX = ogButtonX;
                 if (x >= buttonX && x <= buttonX + 100 && y >= buttonY && y <= buttonY + buttonHeight) {
-                    // Apply the corresponding filter
-                    switch (i) {
-                        case 0: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyNegative(currentImage); 
-                            }
-                            std::cout << "Negative button pressed!" << std::endl;
-                            break;
-                        case 1: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applySepia(currentImage); 
-                            }
-                            std::cout << "Sepia button pressed!" << std::endl;
-                            break;
-                        case 2: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyBlackAndWhite(currentImage);
-                            }
-                            std::cout << "B&W button pressed!" << std::endl; 
-                            break;
-                        case 3: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyBlur(currentImage); 
-                            }
-                            std::cout << "Blur button pressed!" << std::endl;
-                            break;
-                        case 4: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyCartoonEffect(currentImage); 
-                            } 
-                            std::cout << "Cartoon button pressed!" << std::endl;
-                            break;
-                        case 5: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyPencilSketch(currentImage); 
-                            }
-                            std::cout << "Pencil button pressed!" << std::endl;
-                            break;
-                        case 6: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyThermalVision(currentImage); 
-                            }
-                            std::cout << "Thermal button pressed!" << std::endl;
-                            break;
-                        case 7: 
-                            if (!currentImage.empty())
-                            {
-                                filterPressed = true;
-                                currentImage = applyEdgeDetection(currentImage); 
-                            }
-                            std::cout << "Edge button pressed!" << std::endl;
-                            break;
+                    if (!originalImage.empty()) {
+                        if (send(serverSock, &SIGNAL_FILTER, sizeof(SIGNAL_FILTER), 0) == -1) {
+                            perror("send failed");
+                            exit(EXIT_FAILURE);
+                        }
+
+                        std::cout << "filter signal sent succesfully!" << std::endl;
+
+                        if (send(serverSock, &i, sizeof(i), 0) == -1) {
+                            perror("send failed");
+                            exit(EXIT_FAILURE);
+                        }
+
+                        std::cout << "filter sent succesfully!" << std::endl;
+
+                        if (!currentImage.empty())
+                        {
+                            cv::imencode(postData.imageType, currentImage, buffer);
+                            size_t imageSizeSend = buffer.size() + 1;
+                            sendImage(serverSock, buffer, imageSizeSend);
+                        }
+                        else 
+                            std::cout << "EMPTY IMAGE!!!!" << std::endl;
+
+                        std::cout << "after send in client" << std::endl;
+
+                        std::vector<uchar> newImageData = receiveImage(serverSock);
+
+                        std::cout << "before decode in client" << std::endl;
+                        currentImage = cv::imdecode(newImageData, cv::IMREAD_COLOR);
+                        if (currentImage.channels() != 3) {
+                            cv::cvtColor(currentImage, currentImage, cv::COLOR_GRAY2BGR);
+                        }
+                        std::cout << "after decode in client" << std::endl;
+
+                        filterPressed = true;
                     }
                     break;
                 }
@@ -364,6 +425,23 @@ void onKeyboard(char key) {
     } else if (isTypingPassword) {
         loginData.password += key;
         std::cout << '*';
+    }
+}
+
+void sendLike(int postId, int userId) {
+    if (send(serverSock, &SIGNAL_LIKE, sizeof(SIGNAL_LIKE), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (send(serverSock, &postId, sizeof(postId), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (send(serverSock, &userId, sizeof(userId), 0) == -1) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -521,26 +599,6 @@ extern "C" void createLoginScreen() {
     disableNonBlockingInput();
 }
 
-unsigned char hexCharToByte(char hex) {
-    if (hex >= '0' && hex <= '9') {
-        return hex - '0';
-    } else if (hex >= 'a' && hex <= 'f') {
-        return hex - 'a' + 10;
-    } else if (hex >= 'A' && hex <= 'F') {
-        return hex - 'A' + 10;
-    }
-    return 0; // Error
-}
-
-std::vector<unsigned char> transformData(const std::vector<unsigned char>& inputData) {
-    std::vector<unsigned char> outputData;
-    for (size_t i = 2; i < inputData.size(); i += 2) {
-        unsigned char value = (hexCharToByte(inputData[i]) << 4) | hexCharToByte(inputData[i + 1]);
-        outputData.push_back(value);
-    }
-    return outputData;
-}
-
 void printVectorToFile(const std::vector<uchar>& data, const std::string& filename, int index) {
     std::ofstream outputFile(filename + std::to_string(index), std::ios::binary);
     if (!outputFile) {
@@ -555,18 +613,6 @@ void printVectorToFile(const std::vector<uchar>& data, const std::string& filena
     outputFile.close();
 
     std::cout << "Vector data has been written to " << filename << std::endl;
-}
-
-typedef unsigned char uchar;
-
-std::vector<uchar> convertToVector(const uchar* data, size_t size) {
-    // Initialize vector with data from the array
-    return std::vector<uchar>(data, data + size);
-}
-
-uchar* convertToPointer(std::vector<uchar>& vec) {
-    // Return a pointer to the beginning of the vector's data
-    return vec.data();
 }
 
 extern "C" void mainScreen() {
@@ -684,9 +730,6 @@ extern "C" void mainScreen() {
     disableNonBlockingInput();
     cv::destroyWindow("Main Screen");
 }
-
-std::vector<uchar> buffer;
-size_t image_size;
 
 extern "C" void createPostScreen () {
     originalImage = cv::Mat();
@@ -841,11 +884,6 @@ extern "C" void createPostScreen () {
 
             cv::imencode(postData.imageType, image, buffer);
             image_size = buffer.size() + 1;
-
-            /* This is used for debug only
-            std::string filename = "output.txt";
-            printVectorToFile(buffer, filename);
-            */
 
             std::cout << "image size: " << image_size << std::endl;
             reconstructed_image = cv::imdecode(buffer, cv::IMREAD_COLOR);

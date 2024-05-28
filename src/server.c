@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include "connection.h"
 #include "interface_wrapper.h"
+#include "image_prc_wrapper.h"
 #include "login.h"
 #include "fistic_wrapper.h"
 
@@ -51,7 +52,7 @@ void setPostServer(PGconn* conn, int client_sock, struct Post* posts, int id) {
                 if (sent < 0) {
                     perror("Failed to send image data");
                     printf("Client %d disconnected.\n", id);
-                    exit(EXIT_FAILURE);
+                    close(client_sock);
                 }
                 bytesSent += sent;
             }
@@ -67,6 +68,73 @@ void setPostServer(PGconn* conn, int client_sock, struct Post* posts, int id) {
             current_post++;
         }
     }
+}
+
+size_t getImageArraySize(const unsigned char *array) {
+    size_t size = 0;
+    while (array[size] != '\0') {
+        size++;
+    }
+    return size;
+}
+
+void writeImageToFile(const char* filename, unsigned char* imageData, size_t imageSize) {
+    FILE* file = fopen(filename, "wb");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
+    size_t bytesWritten = fwrite(imageData, sizeof(unsigned char), imageSize, file);
+    if (bytesWritten != imageSize) {
+        fprintf(stderr, "Error writing to file\n");
+        fclose(file);
+        return;
+    }
+
+    fclose(file);
+    printf("Image data written to file successfully.\n");
+}
+
+void sendImage(int client_sock, unsigned char* image, size_t imageSize) {
+    // Send the image size
+    send(client_sock, &imageSize, sizeof(size_t), 0);
+
+    // Send the image data in chunks
+    size_t bytesSent = 0;
+    while (bytesSent < imageSize) {
+        size_t bytesToSend = (CHUNK_SIZE < imageSize - bytesSent) ? CHUNK_SIZE : (imageSize - bytesSent);
+        ssize_t sent = send(client_sock, image + bytesSent, bytesToSend, 0);
+        if (sent < 0) {
+            perror("Failed to send image data");
+            close(client_sock);
+        }
+        bytesSent += sent;
+    }
+}
+
+unsigned char* receiveImage(int client_sock, size_t imageSize) {
+    // Allocate memory for the image
+    unsigned char* image = (unsigned char*)malloc(imageSize);
+    if (image == NULL) {
+        perror("Failed to allocate memory for image");
+        close(client_sock);
+    }
+
+    // Receive the image data in chunks
+    size_t bytesReceived = 0;
+    while (bytesReceived < imageSize) {
+        size_t bytesToReceive = (CHUNK_SIZE < imageSize - bytesReceived) ? CHUNK_SIZE : (imageSize - bytesReceived);
+        ssize_t received = recv(client_sock, image + bytesReceived, bytesToReceive, 0);
+        if (received < 0) {
+            perror("Failed to receive image data");
+            free(image);
+            close(client_sock);
+        }
+        bytesReceived += received;
+    }
+    
+    return image;
 }
 
 void *client_handler(void *arg) {
@@ -263,6 +331,115 @@ void *client_handler(void *arg) {
         else if (strcmp(buffer, "G") == 0) {
             posts = get_all_posts(conn, user.id);
             setPostServer(conn, client_sock, posts, id);
+        }
+        else if (strcmp(buffer, "L") == 0) {
+            int postId, userId;
+
+            if (recv(client_sock, &postId, sizeof(postId), 0) <= 0) {
+                perror("Failed to receive post id from client");
+                printf("Client %d disconnected.\n", id);
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            if (recv(client_sock, &userId, sizeof(userId), 0) <= 0) {
+                perror("Failed to receive user id from client");
+                printf("Client %d disconnected.\n", id);
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            like_or_remove_like(conn, userId, postId);
+        }
+        else if (strcmp(buffer, "F") == 0) {
+            int filter;
+            if (recv(client_sock, &filter, sizeof(filter), 0) <= 0) {
+                perror("Failed to receive filter from client");
+                printf("Client %d disconnected.\n", id);
+                close(client_sock);
+                free(client_info);
+                pthread_exit(NULL);
+            }
+
+            printf("Filter: %d\n", filter);
+
+            size_t receivedImageSize;
+            // Receive the image size
+            if (recv(client_sock, &receivedImageSize, sizeof(size_t), 0) <= 0) {
+                perror("Failed to receive image Size from client");
+                close(client_sock);
+                pthread_exit(NULL);
+            }
+
+            printf("Received image size: %zu\n", receivedImageSize);
+            unsigned char* receivedImage = receiveImage(client_sock, receivedImageSize);
+            unsigned char * processedImage;
+
+            // Apply the corresponding filter
+            switch (filter) {
+                case 0: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applyNegative(receivedImage, receivedImageSize); 
+                    }
+                    printf("Negative button pressed!\n");
+                    break;
+                case 1: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applySepia(receivedImage, receivedImageSize); 
+                    }
+                    printf("Sepia button pressed!\n");
+                    break;
+                case 2: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applyBlackAndWhite(receivedImage, receivedImageSize);
+                    }
+                    printf("B&W button pressed!\n"); 
+                    break;
+                case 3: 
+                    if (receivedImage != NULL)
+                    { 
+                        processedImage = applyBlur(receivedImage, receivedImageSize); 
+                    }
+                    printf("Blur button pressed!\n");
+                    break;
+                case 4: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applyCartoonEffect(receivedImage, receivedImageSize); 
+                    } 
+                    printf("Cartoon button pressed!\n");
+                    break;
+                case 5: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applyPencilSketch(receivedImage, receivedImageSize); 
+                    }
+                    printf("Pencil button pressed!\n");
+                    break;
+                case 6: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applyThermalVision(receivedImage, receivedImageSize); 
+                    }
+                    printf("Thermal button pressed!\n");
+                    break;
+                case 7: 
+                    if (receivedImage != NULL)
+                    {
+                        processedImage = applyEdgeDetection(receivedImage, receivedImageSize); 
+                    }
+                    printf("Edge button pressed!\n");
+                    break;
+            }
+
+            printf("image size: %zu\n", receivedImageSize);
+
+            sendImage(client_sock, processedImage, receivedImageSize);
         }
     }
 

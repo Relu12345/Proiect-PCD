@@ -71,6 +71,7 @@
         "endpoint.h": "c"
     },
     "python.analysis.extraPaths": [
+        "./src",
         "./src"
     ],
     "C_Cpp.default.compilerPath": "/usr/bin/gcc"

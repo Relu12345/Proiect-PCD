@@ -53,25 +53,35 @@ def receive_posts(client_socket):
 
         print("before receiving picture")
         image_data_hex = receive_all(client_socket, image_size)
+        print("received image hex ok")
 
         if len(image_data_hex) != image_size:
+            print("inside first if")
             image_data_hex = image_data_hex[:image_size]
+            print("new image data hex clamped")
 
         hex_end = len(image_data_hex)
+        print("hex end defined")
         for j in range(len(image_data_hex) - 1, -1, -1):
+            print(f"in for: {j}")
             if chr(image_data_hex[j]).lower() in '0123456789abcdef':
+                print("if chr")
                 hex_end = j + 1
+                print("hex end higher")
                 break
 
         image_data_hex = image_data_hex[:hex_end]
+        print("image data hex set again, with new hex end")
 
         try:
             image_data = transform_data(image_data_hex.decode('ascii'))
+            print("image data now ascii")
         except ValueError as ve:
             print(f"ValueError while transforming data: {ve}")
             continue
 
         if len(image_data) != image_size:
+            print("second if")
             image_data = image_data[:image_size]
 
         print("after picture received")
@@ -132,7 +142,10 @@ def hex_char_to_byte(hex_char):
 def transform_data(hex_data):
     output_data = bytearray()
     for i in range(2, len(hex_data), 2):
-        byte = (hex_char_to_byte(hex_data[i]) << 4) | hex_char_to_byte(hex_data[i + 1])
+        if i == len(hex_data) - 1:
+            byte = hex_char_to_byte(hex_data[i]) << 4
+        else:
+            byte = (hex_char_to_byte(hex_data[i]) << 4) | hex_char_to_byte(hex_data[i + 1])
         output_data.append(byte)
     return bytes(output_data)
 
@@ -152,7 +165,7 @@ def main():
         user = receive_user_info(client_socket)
 
         posts = receive_posts(client_socket)
-        interface.create_main_screen(user, posts)
+        interface.create_main_screen(user, posts, client_socket, 0)
 
     except Exception as e:
         print("Error:", e)
