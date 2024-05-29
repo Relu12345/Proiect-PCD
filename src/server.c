@@ -6,6 +6,7 @@
 #include <sys/un.h>
 #include <pthread.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include "connection.h"
 #include "interface_wrapper.h"
 #include "image_prc_wrapper.h"
@@ -138,11 +139,9 @@ unsigned char* receiveImage(int client_sock, size_t imageSize) {
 }
 
 void *client_handler(void *arg) {
-
-    const char *connstring = "host=dpg-cohr28ol5elc73csm2i0-a.frankfurt-postgres.render.com port=5432 dbname=pcd user=pcd_user password=OAGPeU3TKCHQ3hePtl69HSQNb8DiBbls";
     PGconn *conn = NULL;
 
-    conn = PQconnectdb(connstring);
+    conn = PQconnectdb(DB_CONNECTION);
 
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
@@ -222,8 +221,13 @@ void *client_handler(void *arg) {
             send(client_sock, "SUCCESS", 7, 0);
             printf("Successful login\n");
         } else {
-            // Invalid login, we send a signal to the client to say this
-            send(client_sock, "FAIL", 7, 0);
+            // Invalid login or banned account, we send a signal to the client to say this
+            if (loginResult == 2) {
+                send(client_sock, "BAN", 7, 0);
+            } else {
+                send(client_sock, "FAIL", 7, 0);
+            }
+
             printf("Invalid login\n");
             printf("Client %d disconnected.\n", id);
             close(client_sock);
@@ -274,8 +278,8 @@ void *client_handler(void *arg) {
 
             printf("received message: %s\n", description);
 
-            size_t image_size;
-            if (recv(client_sock, &image_size, sizeof(size_t), 0) <= 0) {
+            uint64_t image_size;
+            if (recv(client_sock, &image_size, sizeof(uint64_t), 0) <= 0) {
                 perror("Failed to receive image data size from client");
                 printf("Client %d disconnected.\n", id);
                 close(client_sock);
@@ -283,7 +287,8 @@ void *client_handler(void *arg) {
                 pthread_exit(NULL);
             }
 
-            printf("image size: %zu\n", image_size);
+            image_size = be64toh(image_size); // Convert from big-endian to host byte order
+            printf("image size: %" PRIu64 "\n", image_size);
 
             // Receive image data (grayscale byte array) from the client
             unsigned char* imageData = (unsigned char*)malloc(image_size);
@@ -375,7 +380,7 @@ void *client_handler(void *arg) {
 
             printf("Received image size: %zu\n", receivedImageSize);
             unsigned char* receivedImage = receiveImage(client_sock, receivedImageSize);
-            unsigned char * processedImage;
+            ImageData processedImage;
 
             // Apply the corresponding filter
             switch (filter) {
@@ -437,9 +442,14 @@ void *client_handler(void *arg) {
                     break;
             }
 
-            printf("image size: %zu\n", receivedImageSize);
+            unsigned char* imageDataPtr = processedImage.dataPtr;
+            size_t processedImageSize = processedImage.dataSize;
 
-            sendImage(client_sock, processedImage, receivedImageSize);
+            writeImageToFile("output.txt", imageDataPtr, processedImageSize);
+
+            printf("image size: %zu\n", processedImageSize);
+
+            sendImage(client_sock, imageDataPtr, processedImageSize);
         }
     }
 
@@ -451,15 +461,27 @@ void *client_handler(void *arg) {
 
 void *admin_handler(void *arg) {
     ClientInfo *client_info = (ClientInfo *)arg;
+    struct Post* posts = NULL;
+    struct User* users = NULL;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
-
+    PGconn *conn = NULL;
     printf("Admin client connected.\n");
 
-    char buffer[100];
+    int users_count = 0;
+
+    conn = PQconnectdb(DB_CONNECTION);
+    users = get_all_users(conn, &users_count);
+
+    char recv_buffer[CHUNK_SIZE];
+    char send_buffer[CHUNK_SIZE];
+    int ok;
     while (1) {
-        memset(buffer, 0, sizeof(buffer));
-        int received = recv(client_sock, buffer, sizeof(buffer) - 1, 0);
+        memset(recv_buffer, 0, sizeof(recv_buffer));
+        memset(send_buffer, 0, sizeof(send_buffer));
+        fflush(stdout);
+
+        int received = recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
         if (received <= 0) {
             printf("Admin client disconnected.\n");
             close(client_sock);
@@ -467,7 +489,118 @@ void *admin_handler(void *arg) {
             free(client_info);
             pthread_exit(NULL);
         }
-        printf("Admin: %s\n", buffer);
+        printf("Admin: %s\n", recv_buffer);
+        int choice = atoi(recv_buffer);
+        switch(choice) {
+            case 1:
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                memset(send_buffer, 0, sizeof(send_buffer));
+                int offset = 0;
+                for (int i = 0; i < users_count; i++) {
+                    offset += snprintf(send_buffer + offset, sizeof(send_buffer) - offset, "%s %d\n", users[i].name, users[i].id);
+                    printf("user name[%d]: %s\n", users[i].id, users[i].name);
+                }
+                send(client_sock, send_buffer, offset, 0);
+                
+                break;
+            case 2:
+                ok = 0;
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                memset(send_buffer, 0, sizeof(send_buffer));
+                if (recv(client_sock, recv_buffer, sizeof(recv_buffer), 0) <= 0) {
+                    perror("Failed to receive user ID from client");
+                    break;
+                }
+
+                int user_id = atoi(recv_buffer);
+                printf("received user_id: %d\n", user_id);
+                posts = get_all_user_posts(conn, user_id);
+                int posts_count = get_user_posts_counts(conn, user_id);
+                printf("posts count: %d\n", posts_count);
+
+                if (posts_count > 0) {
+                    snprintf(send_buffer, sizeof(send_buffer), "User id:%d\nUser name:%s\n\n", posts[0].userId, posts[0].userName);
+                    for (int j = 0; j < posts_count; j++) {
+                        char chunk[CHUNK_SIZE];
+                        snprintf(chunk, sizeof(chunk), "Id:%d\nDescription:%s\n", posts[j].id, posts[j].description);
+                        strcat(send_buffer, chunk);
+                        strcat(send_buffer, "----------\n");
+                    }
+                    printf ("%s" ,send_buffer);
+                    send(client_sock, send_buffer, sizeof(send_buffer), 0);
+                } else {
+                    char not_found[] = "User has no posts or user does not exist";
+                    send(client_sock, not_found, sizeof(not_found), 0);
+                }
+                break;
+            case 3:
+                ok = 0;
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                memset(send_buffer, 0, sizeof(send_buffer));
+
+                recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
+                posts = get_posts(conn);
+                int postsCount = get_posts_counts(conn);
+                for (int i = 0; i < postsCount; i++) {
+                    if (posts[i].id == atoi(recv_buffer) && ok == 0) {
+                        deletePost(conn, posts[i].id);
+                        ok = 1;
+                        break;
+                    }
+                }
+                if (ok == 1) {
+                    char post_deleted[] = "Post has been deleted\n";
+                    send(client_sock, post_deleted, sizeof(post_deleted), 0);
+                }
+                else {
+                    char not_found[] = "Post not found\n";
+                    send(client_sock, not_found, sizeof(not_found), 0);
+                }
+                break;
+            case 4:
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                if (recv(client_sock, recv_buffer, sizeof(recv_buffer), 0) <= 0) {
+                    perror("Failed to receive user ID from client");
+                    break;
+                }
+                
+                int user_id_block = atoi(recv_buffer);
+
+                bool is_blocked = is_user_blocked(conn, user_id_block);
+
+                char status_message[100];
+                snprintf(status_message, sizeof(status_message), "User is currently: %s\nDo you want to change the status (Y/N)?", is_blocked ? "Blocked" : "Unblocked");
+                send(client_sock, status_message, sizeof(status_message), 0);
+
+                char admin_choice;
+                if (recv(client_sock, &admin_choice, sizeof(admin_choice), 0) <= 0) {
+                    perror("Failed to receive admin's choice");
+                    break;
+                }
+
+                if (admin_choice == 'Y' || admin_choice == 'y') {
+                    // Toggle the blocked status of the user
+                    bool success = block_user(conn, user_id_block);
+
+                    is_blocked = !is_blocked;
+
+                    if (success) {
+                        const char* status = is_blocked ? "Blocked" : "Unblocked";
+                        
+                        char success_message[100];
+                        snprintf(success_message, sizeof(success_message), "User is now: %s", status);
+                        send(client_sock, success_message, sizeof(success_message), 0);
+                    } else {
+                        send(client_sock, "Failed to update user status.", sizeof("Failed to update user status."), 0);
+                    }
+                }
+                else {
+                    send(client_sock, "Operation canceled.", sizeof("Operation canceled."), 0);
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     close(client_sock);
@@ -520,7 +653,7 @@ void *unix_server_thread(void *arg) {
             client_info->id = client_id++;
             client_info->sock_fd = client_unix_sock;
 
-            char buffer[100] = {0};
+            char buffer[CHUNK_SIZE] = {0};
             recv(client_unix_sock, buffer, sizeof(buffer) - 1, 0);
 
             if (strcmp(buffer, ADMIN_PASSWORD) == 0) {

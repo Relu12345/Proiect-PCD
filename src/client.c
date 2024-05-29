@@ -50,6 +50,12 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    if(strcmp(response, "BAN") == 0) {
+        printf("You have been banned on this account and cannot log in\n");
+        close(server_sock);
+        exit(EXIT_FAILURE);
+    }
+
     int id;
     char name[100];
 

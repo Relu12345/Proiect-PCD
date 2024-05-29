@@ -3,19 +3,24 @@
 
 #include <stddef.h>
 
+typedef struct {
+    unsigned char* dataPtr;
+    size_t dataSize;
+} ImageData;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Function prototypes for the filters
-unsigned char * applyNegative(const unsigned char* data, size_t size);
-unsigned char * applySepia(const unsigned char* data, size_t size);
-unsigned char * applyBlackAndWhite(const unsigned char* data, size_t size);
-unsigned char * applyBlur(const unsigned char* data, size_t size);
-unsigned char * applyCartoonEffect(const unsigned char* data, size_t size);
-unsigned char * applyPencilSketch(const unsigned char* data, size_t size);
-unsigned char * applyThermalVision(const unsigned char* data, size_t size);
-unsigned char * applyEdgeDetection(const unsigned char* data, size_t size);
+ImageData applyNegative(const unsigned char* data, size_t size);
+ImageData applySepia(const unsigned char* data, size_t size);
+ImageData applyBlackAndWhite(const unsigned char* data, size_t size);
+ImageData applyBlur(const unsigned char* data, size_t size);
+ImageData applyCartoonEffect(const unsigned char* data, size_t size);
+ImageData applyPencilSketch(const unsigned char* data, size_t size);
+ImageData applyThermalVision(const unsigned char* data, size_t size);
+ImageData applyEdgeDetection(const unsigned char* data, size_t size);
 
 #ifdef __cplusplus
 }
