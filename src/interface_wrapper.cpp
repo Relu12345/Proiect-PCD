@@ -334,10 +334,10 @@ void postOnMouse(int event, int x, int y, int flags, void* userdata) {
 
                         std::cout << "filter sent succesfully!" << std::endl;
 
-                        if (!currentImage.empty())
+                        if (!originalImage.empty())
                         {
-                            cv::imencode(postData.imageType, currentImage, buffer);
-                            size_t imageSizeSend = buffer.size() + 1;
+                            cv::imencode(postData.imageType, originalImage, buffer);
+                            size_t imageSizeSend = buffer.size();
                             sendImage(serverSock, buffer, imageSizeSend);
                         }
                         else 
@@ -845,9 +845,10 @@ extern "C" void createPostScreen () {
             }
 
             cv::imencode(postData.imageType, currentImage, buffer);
-            image_size = buffer.size() + 1;
+            uint64_t image_size = buffer.size() + 1;
+            uint64_t network_order_size = htobe64(image_size);
 
-            send(serverSock, &image_size, sizeof(size_t), 0);
+            send(serverSock, &network_order_size, sizeof(uint64_t), 0);
             uchar* imageDataPointer = convertToPointer(buffer);
             size_t bytesSent = 0;
             while (bytesSent < image_size) {

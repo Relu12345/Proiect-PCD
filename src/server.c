@@ -6,6 +6,7 @@
 #include <sys/un.h>
 #include <pthread.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include "connection.h"
 #include "interface_wrapper.h"
 #include "image_prc_wrapper.h"
@@ -222,8 +223,13 @@ void *client_handler(void *arg) {
             send(client_sock, "SUCCESS", 7, 0);
             printf("Successful login\n");
         } else {
-            // Invalid login, we send a signal to the client to say this
-            send(client_sock, "FAIL", 7, 0);
+            // Invalid login or banned account, we send a signal to the client to say this
+            if (loginResult == 2) {
+                send(client_sock, "BAN", 7, 0);
+            } else {
+                send(client_sock, "FAIL", 7, 0);
+            }
+
             printf("Invalid login\n");
             printf("Client %d disconnected.\n", id);
             close(client_sock);
@@ -274,8 +280,8 @@ void *client_handler(void *arg) {
 
             printf("received message: %s\n", description);
 
-            size_t image_size;
-            if (recv(client_sock, &image_size, sizeof(size_t), 0) <= 0) {
+            uint64_t image_size;
+            if (recv(client_sock, &image_size, sizeof(uint64_t), 0) <= 0) {
                 perror("Failed to receive image data size from client");
                 printf("Client %d disconnected.\n", id);
                 close(client_sock);
@@ -283,7 +289,8 @@ void *client_handler(void *arg) {
                 pthread_exit(NULL);
             }
 
-            printf("image size: %zu\n", image_size);
+            image_size = be64toh(image_size); // Convert from big-endian to host byte order
+            printf("image size: %" PRIu64 "\n", image_size);
 
             // Receive image data (grayscale byte array) from the client
             unsigned char* imageData = (unsigned char*)malloc(image_size);
@@ -375,7 +382,7 @@ void *client_handler(void *arg) {
 
             printf("Received image size: %zu\n", receivedImageSize);
             unsigned char* receivedImage = receiveImage(client_sock, receivedImageSize);
-            unsigned char * processedImage;
+            ImageData processedImage;
 
             // Apply the corresponding filter
             switch (filter) {
@@ -437,9 +444,14 @@ void *client_handler(void *arg) {
                     break;
             }
 
-            printf("image size: %zu\n", receivedImageSize);
+            unsigned char* imageDataPtr = processedImage.dataPtr;
+            size_t processedImageSize = processedImage.dataSize;
 
-            sendImage(client_sock, processedImage, receivedImageSize);
+            writeImageToFile("output.txt", imageDataPtr, processedImageSize);
+
+            printf("image size: %zu\n", processedImageSize);
+
+            sendImage(client_sock, imageDataPtr, processedImageSize);
         }
     }
 

@@ -311,7 +311,7 @@ bool deletePost(PGconn* conn, int post_id) {
 struct User login_user(PGconn* conn, const char* username, const char* password, int* returnCode) {
     struct User user;
     const char* params[] =  {username, password};
-    const char* query = "SELECT id, name FROM users WHERE name = $1 AND password = $2";
+    const char* query = "SELECT id, name, blocked FROM users WHERE name = $1 AND password = $2";
     PGresult* res = PQexecParams(conn, query, 2, NULL, params, NULL, NULL, 0);
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         if (PQresultStatus(res) == PGRES_NONFATAL_ERROR) {
@@ -330,8 +330,19 @@ struct User login_user(PGconn* conn, const char* username, const char* password,
     }
     user.id = atoi(PQgetvalue(res, 0, 0));
     strcpy(user.name, PQgetvalue(res, 0, 1));
+    bool blocked;
+    const char *boolValue = PQgetvalue(res, 0, 2);
+    if (boolValue[0] == 't') {
+        blocked = true;
+    } else if (boolValue[0] == 'f') {
+        blocked = false;
+    }
 
-    *returnCode = 0;
+    if (blocked)
+        *returnCode = 2;
+    else
+        *returnCode = 0;
+        
     PQclear(res);
     return user;
 }
