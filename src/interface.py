@@ -1,3 +1,4 @@
+import ctypes
 import struct
 import sys
 import tkinter as tk
@@ -8,10 +9,58 @@ import numpy as np
 import io
 from PIL import Image, ImageTk, ImageOps
 import client
-import filters
+
+CHUNK_SIZE = 1024
 
 currentPostIndex = 0
 posts = []
+
+def send_image(client_socket, image_data):
+    image_size = len(image_data)
+    # Send the image size
+    client_socket.sendall(struct.pack('Q', image_size))
+
+    # Send the image data in chunks
+    sent_bytes = 0
+    while sent_bytes < image_size:
+        chunk = image_data[sent_bytes:sent_bytes + CHUNK_SIZE]
+        client_socket.sendall(chunk)
+        sent_bytes += len(chunk)
+    print("Image sent successfully")
+
+def receive_image(client_socket):
+    # Receive the image size
+    image_size_data = receive_all(client_socket, 8)
+    if not image_size_data:
+        return None
+    image_size = struct.unpack('Q', image_size_data)[0]
+    print(f"Received image size: {image_size}")
+
+    # Receive the image data in chunks
+    image_data = b''
+    while len(image_data) < image_size:
+        chunk = client_socket.recv(min(CHUNK_SIZE, image_size - len(image_data)))
+        if not chunk:
+            return None
+        image_data += chunk
+    print("Image received successfully")
+    
+    return image_data
+
+def receive_all(sock, n):
+    data = b''
+    while len(data) < n:
+        packet = sock.recv(n - len(data))
+        if not packet:
+            return None
+        data += packet
+    return data
+
+def decode_image(image_data):
+    img_array = np.frombuffer(image_data, dtype=np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    return img
+
 
 def on_main_screen():
     # Add logic to open the main screen window
@@ -33,7 +82,12 @@ def on_login(client_socket, root):
     if "SUCCESS" in response:
         messagebox.showinfo("Login", "Login successful!")
         root.destroy()
-    else:
+    
+    if "BAN" in response:
+        messagebox.showerror("Login Failed", "You have been banned on this account and cannot log in")
+        sys.exit(1)
+    
+    if "FAIL" in response:
         messagebox.showerror("Login Failed", "Login failed. Please try again.")
         sys.exit(1)
 
@@ -45,8 +99,8 @@ def on_register(client_socket, root):
     send_message(client_socket, message)
 
     # Receive response from the server
-    response = client_socket.recv(1024).split(b'\x00', 1)[0].decode()
-    print("response: " + response)
+    response_data = client_socket.recv(7)
+    response = response_data.split(b'\x00', 1)[0].decode()
     if "SUCCESS" in response:
         messagebox.showinfo("Registration", "Registration successful!")
         root.destroy()
@@ -243,10 +297,11 @@ def create_main_screen(user, client_posts, client_sock, option):
 
 def create_post_screen(user, client_sock):
     uploaded_image = None
+    original_image = None
     current_filter = None
 
     def upload_image():
-        nonlocal uploaded_image
+        nonlocal uploaded_image, original_image
         file_path = filedialog.askopenfilename(title="Open Image File", filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.ico")])
         if file_path:
             image = Image.open(file_path)
@@ -273,31 +328,80 @@ def create_post_screen(user, client_sock):
 
             # Store the uploaded image
             uploaded_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            original_image = uploaded_image.copy() 
+            update_reset_button_state()
 
-    def apply_filter(filter_function):
-        nonlocal uploaded_image, current_filter
+    def apply_filter(filter_index):
+        nonlocal uploaded_image, current_filter, original_image
+
         if uploaded_image is not None:
-            filtered_image = filter_function(uploaded_image)
+            # Convert the image to bytes
+            image_bytes = cv2.imencode('.jpg', original_image)[1].tobytes()
+
+            # Send filter signal 
+            client_sock.sendall(b'F')
+
+            # Send the filter index (from 0 to 7)
+            client_sock.sendall(struct.pack('i', filter_index))
+
+            # Define a fixed-size data type to match size_t on the C side
+            size_t_type = ctypes.c_ulong
+
+            # Convert the image size to a ctypes variable
+            image_size_ctypes = size_t_type(len(image_bytes))
+
+            client_sock.sendall(image_size_ctypes)
+
+            # Send the image bytes
+            client_sock.sendall(image_bytes)
+
+            # Receive the image size
+            size_to_receive = ctypes.sizeof(size_t_type)
+            buffer = bytearray(size_to_receive)
+            received_data = client_sock.recv(size_to_receive)
+            buffer[:size_to_receive] = received_data
+            received_size_ctypes = size_t_type.from_buffer(buffer)
+
+            print(f"image size in filter: {received_size_ctypes.value}")
+
+            # Receive processed image bytes from server
+            processed_image_bytes = b''
+            while len(processed_image_bytes) < received_size_ctypes.value:
+                packet = client_sock.recv(4096)
+                if not packet:
+                    break
+                processed_image_bytes += packet
+
+            # Decode the image
+            processed_image_array = np.frombuffer(processed_image_bytes, dtype=np.uint8)
+            filtered_image = cv2.imdecode(processed_image_array, cv2.IMREAD_COLOR)
             filtered_image = cv2.cvtColor(filtered_image, cv2.COLOR_BGR2RGB)
+
+            uploaded_image = filtered_image
+
+            # Update the image in the GUI
             img = ImageTk.PhotoImage(Image.fromarray(filtered_image))
             image_label.config(image=img)
             image_label.image = img
-            current_filter = filter_function
+            current_filter = filter_index
 
     def cancel_action():
         root.destroy()
         create_main_screen(user, posts, client_sock, 1)
 
     def reset_action():
-        nonlocal uploaded_image, current_filter
+        nonlocal uploaded_image, current_filter, original_image
         if uploaded_image is not None:
-            img = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(uploaded_image, cv2.COLOR_BGR2RGB)))
-            image_label.config(image=img)
-            image_label.image = img
+            uploaded_image = original_image.copy()
+
+            img_pil = Image.fromarray(cv2.cvtColor(uploaded_image, cv2.COLOR_BGR2RGB))
+            img_tk = ImageTk.PhotoImage(image=img_pil)
+            image_label.config(image=img_tk)
+            image_label.image = img_tk
             current_filter = None
 
     def send_post():
-        nonlocal uploaded_image  # Declare uploaded_image as non-local
+        nonlocal uploaded_image, current_filter  # Declare uploaded_image as non-local
         SIGNAL_POST = b"P"
         CHUNK_SIZE = 1024
 
@@ -315,24 +419,24 @@ def create_post_screen(user, client_sock):
         print("sent post signal")
 
         # Send description
-        description_bytes = description.encode('utf-8')
-        client_sock.sendall(description_bytes)
+        padded_description = description.ljust(105, '\0')
 
-        print("sent description:", description)
+        # Send the padded description
+        client_sock.sendall(padded_description.encode('utf-8'))
 
-        # Apply current filter if any
-        if current_filter:
-            uploaded_image = current_filter(uploaded_image)
-
-        # Encode image
-        _, buffer = cv2.imencode('.jpg', uploaded_image)
+        print("sent description:", padded_description)
 
         uploaded_image_bytes = cv2.imencode('.jpg', uploaded_image)[1].tobytes()
         uploaded_image_size = len(uploaded_image_bytes)
-        size_bytes = struct.pack("Q", uploaded_image_size)
+
+        print(f"image size before: {uploaded_image_size}")
 
         # Send image size
-        client_sock.sendall(size_bytes)
+        image_size_packed = struct.pack('>Q', uploaded_image_size)
+        print("Packed image size:", image_size_packed)
+
+        # Send image size
+        client_sock.sendall(image_size_packed)
 
         # Send image data in chunks
         bytes_sent = 0
@@ -341,6 +445,7 @@ def create_post_screen(user, client_sock):
             sent = client_sock.send(uploaded_image_bytes[bytes_sent:bytes_sent + bytes_to_send])
             if sent < 0:
                 print("Failed to send image data")
+                break
             bytes_sent += sent
 
         print("sent picture")
@@ -374,25 +479,11 @@ def create_post_screen(user, client_sock):
     post_desc_entry = tk.Entry(left_frame)
     post_desc_entry.place(x=10, y=230, relwidth=0.9)
 
-    def apply_filter(filter_function):
-        nonlocal uploaded_image, current_filter
-        if uploaded_image is not None:
-            filtered_image = filter_function(uploaded_image)
-            filtered_image = cv2.cvtColor(filtered_image, cv2.COLOR_BGR2RGB)
-            img = ImageTk.PhotoImage(Image.fromarray(filtered_image))
-            image_label.config(image=img)
-            image_label.image = img
-            current_filter = filter_function
-
-    filter_functions = [filters.applyNegative, filters.applySepia, filters.applyBlackAndWhite, filters.applyBlur,
-                        filters.applyCartoonEffect, filters.applyPencilSketch, filters.applyThermalVision,
-                        filters.applyEdgeDetection]
-
     button_names = ["Negative", "Sepia", "Black & White", "Blur", "Cartoon", "Pencil Sketch", "Thermal Vision",
                     "Edge Detection"]
 
-    for i, (name, func) in enumerate(zip(button_names, filter_functions)):
-        button = tk.Button(left_frame, text=name, command=lambda f=func: apply_filter(f))
+    for i, name in enumerate(button_names):
+        button = tk.Button(left_frame, text=name, command=lambda i=i: apply_filter(i))
         button.place(x=10 + (i % 4) * 100, y=280 + (i // 4) * 50)
 
     right_frame = tk.Frame(root, bg='white')
@@ -407,5 +498,11 @@ def create_post_screen(user, client_sock):
 
     send_button = tk.Button(root, text="Send", bg="yellow", command=send_post)
     send_button.place(relx=0.5, rely=0.7, anchor='center')
+
+    def update_reset_button_state():
+        if uploaded_image is not None:
+            reset_button.config(state=tk.NORMAL)
+        else:
+            reset_button.config(state=tk.DISABLED)
 
     root.mainloop()

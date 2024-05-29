@@ -90,6 +90,74 @@ int get_posts_counts(PGconn* conn) {
     return count;
 }
 
+int get_user_posts_counts(PGconn* conn, int userId) {
+    int count = 0;
+
+    char query[100]; 
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM post WHERE user_id = %d", userId);
+
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+
+    if (PQntuples(res) > 0) {
+        count = atoi(PQgetvalue(res, 0, 0));
+    }
+
+    PQclear(res);
+    return count;
+}
+
+struct Post* get_posts(PGconn* conn) {
+    int buffer_len = snprintf(NULL, 0, "SELECT p.*, u.name\n"
+                        "FROM post p\n"
+                        "INNER JOIN users u ON p.user_id = u.id\n"
+                        "GROUP BY p.id, u.name;");
+    char query[buffer_len + 1];
+    snprintf(query, buffer_len + 1, "SELECT p.*, u.name\n"
+                                    "FROM post p\n"
+                                    "INNER JOIN users u ON p.user_id = u.id\n"
+                                    "GROUP BY p.id, u.name;");
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return NULL;
+    }
+
+    int num_rows = PQntuples(res);
+
+    struct Post* posts = malloc(sizeof(posts) * MAX_USERS);
+    if (posts == NULL) {
+        fprintf(stderr, "Failed to allocate memory for users\n");
+        PQclear(res);
+        return NULL;
+    }
+
+    // int post_index = 0;
+    for (int row = 0; row < num_rows; row++) {
+        //printf("%s", (PQgetvalue(res, row, 4)));
+        posts[row].id = atoi(PQgetvalue(res, row, 0));
+        posts[row].userId = atoi(PQgetvalue(res, row, 1));
+        const unsigned char* image_data = PQgetvalue(res, row, 2);
+        int image_len = PQgetlength(res, row, 2);
+        posts[row].image = malloc(image_len);
+        memcpy(posts[row].image, image_data, image_len);
+        posts[row].description = strdup(PQgetvalue(res, row, 3));
+        posts[row].userName = strdup(PQgetvalue(res, row, 4));
+        // post_index++;
+    }
+
+    PQclear(res);
+    return posts;
+}
+
+
 //pt admin, returneaza lista de useri
 struct Post* get_all_posts(PGconn* conn, int userId) {
     int buffer_len = snprintf(NULL, 0, "SELECT p.*, u.name, COALESCE(COUNT(ulp.id), 0) AS like_count,\n"
@@ -198,7 +266,7 @@ struct Post* get_all_user_posts(PGconn* conn, int userId) {
 }
 
 
-struct User* get_all_users(PGconn* conn) {
+struct User* get_all_users(PGconn* conn, int* count) {
     const char* query = "SELECT id, name FROM users";
 
     PGresult* res = PQexec(conn, query);
@@ -211,30 +279,88 @@ struct User* get_all_users(PGconn* conn) {
 
     int num_rows = PQntuples(res);
 
-    struct User* users = malloc(sizeof(users) * MAX_USERS);
+    // Allocate memory for the users array
+    struct User* users = malloc(sizeof(struct User) * num_rows);
     if (users == NULL) {
         fprintf(stderr, "Failed to allocate memory for users\n");
         PQclear(res);
         return NULL;
     }
 
-    int user_index = 0;
     for (int row = 0; row < num_rows; row++) {
-        if (user_index >= MAX_USERS) {
-            fprintf(stderr, "Warning: Reached maximum users (%d). Increase MAX_USERS if needed\n", MAX_USERS);
-            break;
-        }
-
-        users[user_index].id = atoi(PQgetvalue(res, row, 0));
-        strcpy(users[user_index].name, PQgetvalue(res, row, 1));
-
-        user_index++;
+        users[row].id = atoi(PQgetvalue(res, row, 0));
+        strcpy(users[row].name, PQgetvalue(res, row, 1));
     }
+
+    *count = num_rows;
 
     PQclear(res);
     return users;
 }
 
+
+bool block_user(PGconn* conn, int user_id) {
+    // Check if the user is already blocked
+    char query_check[100];
+    snprintf(query_check, sizeof(query_check), "SELECT blocked FROM users WHERE id = %d", user_id);
+
+    PGresult* res_check = PQexec(conn, query_check);
+
+    if (PQresultStatus(res_check) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res_check);
+        return false;
+    }
+
+    bool already_blocked = false;
+    if (PQntuples(res_check) > 0) {
+        already_blocked = (PQgetvalue(res_check, 0, 0)[0] == 't') ? true : false;
+    }
+
+    PQclear(res_check);
+
+    // Toggle the blocked status
+    char query_block[100];
+    if (already_blocked) {
+        snprintf(query_block, sizeof(query_block), "UPDATE users SET blocked = false WHERE id = %d", user_id);
+    } else {
+        snprintf(query_block, sizeof(query_block), "UPDATE users SET blocked = true WHERE id = %d", user_id);
+    }
+
+    PGresult* res_block = PQexec(conn, query_block);
+
+    if (PQresultStatus(res_block) != PGRES_COMMAND_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res_block);
+        return false;
+    }
+
+    PQclear(res_block);
+    return true;
+}
+
+
+bool is_user_blocked(PGconn* conn, int user_id) {
+    // Check if the user is blocked
+    char query[100];
+    snprintf(query, sizeof(query), "SELECT blocked FROM users WHERE id = %d", user_id);
+
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return false;
+    }
+
+    bool blocked = false;
+    if (PQntuples(res) > 0) {
+        blocked = (PQgetvalue(res, 0, 0)[0] == 't') ? true : false;
+    }
+
+    PQclear(res);
+    return blocked;
+}
 
 bool register_user(PGconn* conn, const char* username, const char* password) {
     if (username == NULL || username[0] == '\0' || password == NULL || password[0] == '\0') {
@@ -311,7 +437,7 @@ bool deletePost(PGconn* conn, int post_id) {
 struct User login_user(PGconn* conn, const char* username, const char* password, int* returnCode) {
     struct User user;
     const char* params[] =  {username, password};
-    const char* query = "SELECT id, name FROM users WHERE name = $1 AND password = $2";
+    const char* query = "SELECT id, name, blocked FROM users WHERE name = $1 AND password = $2";
     PGresult* res = PQexecParams(conn, query, 2, NULL, params, NULL, NULL, 0);
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         if (PQresultStatus(res) == PGRES_NONFATAL_ERROR) {
@@ -330,8 +456,19 @@ struct User login_user(PGconn* conn, const char* username, const char* password,
     }
     user.id = atoi(PQgetvalue(res, 0, 0));
     strcpy(user.name, PQgetvalue(res, 0, 1));
+    bool blocked;
+    const char *boolValue = PQgetvalue(res, 0, 2);
+    if (boolValue[0] == 't') {
+        blocked = true;
+    } else if (boolValue[0] == 'f') {
+        blocked = false;
+    }
 
-    *returnCode = 0;
+    if (blocked)
+        *returnCode = 2;
+    else
+        *returnCode = 0;
+        
     PQclear(res);
     return user;
 }
