@@ -90,6 +90,74 @@ int get_posts_counts(PGconn* conn) {
     return count;
 }
 
+int get_user_posts_counts(PGconn* conn, int userId) {
+    int count = 0;
+
+    char query[100]; 
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM post WHERE user_id = %d", userId);
+
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return -1;
+    }
+
+    if (PQntuples(res) > 0) {
+        count = atoi(PQgetvalue(res, 0, 0));
+    }
+
+    PQclear(res);
+    return count;
+}
+
+struct Post* get_posts(PGconn* conn) {
+    int buffer_len = snprintf(NULL, 0, "SELECT p.*, u.name\n"
+                        "FROM post p\n"
+                        "INNER JOIN users u ON p.user_id = u.id\n"
+                        "GROUP BY p.id, u.name;");
+    char query[buffer_len + 1];
+    snprintf(query, buffer_len + 1, "SELECT p.*, u.name\n"
+                                    "FROM post p\n"
+                                    "INNER JOIN users u ON p.user_id = u.id\n"
+                                    "GROUP BY p.id, u.name;");
+    PGresult* res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        fprintf(stderr, "Error executing query: %s\n", PQerrorMessage(conn));
+        PQclear(res);
+        return NULL;
+    }
+
+    int num_rows = PQntuples(res);
+
+    struct Post* posts = malloc(sizeof(posts) * MAX_USERS);
+    if (posts == NULL) {
+        fprintf(stderr, "Failed to allocate memory for users\n");
+        PQclear(res);
+        return NULL;
+    }
+
+    // int post_index = 0;
+    for (int row = 0; row < num_rows; row++) {
+        //printf("%s", (PQgetvalue(res, row, 4)));
+        posts[row].id = atoi(PQgetvalue(res, row, 0));
+        posts[row].userId = atoi(PQgetvalue(res, row, 1));
+        const unsigned char* image_data = PQgetvalue(res, row, 2);
+        int image_len = PQgetlength(res, row, 2);
+        posts[row].image = malloc(image_len);
+        memcpy(posts[row].image, image_data, image_len);
+        posts[row].description = strdup(PQgetvalue(res, row, 3));
+        posts[row].userName = strdup(PQgetvalue(res, row, 4));
+        // post_index++;
+    }
+
+    PQclear(res);
+    return posts;
+}
+
+
 //pt admin, returneaza lista de useri
 struct Post* get_all_posts(PGconn* conn, int userId) {
     int buffer_len = snprintf(NULL, 0, "SELECT p.*, u.name, COALESCE(COUNT(ulp.id), 0) AS like_count,\n"

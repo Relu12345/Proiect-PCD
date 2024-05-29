@@ -34,6 +34,10 @@ struct Post {
 
 int get_posts_counts(PGconn* conn);
 
+int get_user_posts_counts(PGconn* conn, int userId);
+
+struct Post* get_posts(PGconn* conn);
+
 struct Post* get_all_user_posts(PGconn* conn, int userId);
 
 struct User* get_all_users(PGconn* conn);

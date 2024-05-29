@@ -139,11 +139,9 @@ unsigned char* receiveImage(int client_sock, size_t imageSize) {
 }
 
 void *client_handler(void *arg) {
-
-    const char *connstring = "host=dpg-cohr28ol5elc73csm2i0-a.frankfurt-postgres.render.com port=5432 dbname=pcd user=pcd_user password=OAGPeU3TKCHQ3hePtl69HSQNb8DiBbls";
     PGconn *conn = NULL;
 
-    conn = PQconnectdb(connstring);
+    conn = PQconnectdb(DB_CONNECTION);
 
     ClientInfo *client_info = (ClientInfo *)arg;
     int client_sock = client_info->sock_fd;
@@ -463,15 +461,25 @@ void *client_handler(void *arg) {
 
 void *admin_handler(void *arg) {
     ClientInfo *client_info = (ClientInfo *)arg;
+    struct Post* posts = NULL;
+    struct User* users = NULL;
     int client_sock = client_info->sock_fd;
     int id = client_info->id;
-
+    PGconn *conn = NULL;
     printf("Admin client connected.\n");
 
-    char buffer[100];
+    conn = PQconnectdb(DB_CONNECTION);
+    users = get_all_users(conn);
+
+    char recv_buffer[CHUNK_SIZE];
+    char send_buffer[CHUNK_SIZE];
+    int ok;
     while (1) {
-        memset(buffer, 0, sizeof(buffer));
-        int received = recv(client_sock, buffer, sizeof(buffer) - 1, 0);
+        memset(recv_buffer, 0, sizeof(recv_buffer));
+        memset(send_buffer, 0, sizeof(send_buffer));
+        fflush(stdout);
+
+        int received = recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
         if (received <= 0) {
             printf("Admin client disconnected.\n");
             close(client_sock);
@@ -479,7 +487,76 @@ void *admin_handler(void *arg) {
             free(client_info);
             pthread_exit(NULL);
         }
-        printf("Admin: %s\n", buffer);
+        printf("Admin: %s\n", recv_buffer);
+        int choice = atoi(recv_buffer);
+        switch(choice) {
+            case 1:
+                for (int i = 0; i < sizeof(users); i++) {
+                    strcat(send_buffer, users[i].name);
+                    strcat(send_buffer, " ");
+                    char id_str[CHUNK_SIZE];
+                    snprintf(id_str, sizeof(id_str), "%d", users[i].id);
+                    strcat(send_buffer, id_str);
+                    strcat(send_buffer, "\n");
+                    // free(id_str);
+                }
+                send(client_sock, send_buffer, sizeof(send_buffer), 0);
+                
+                break;
+            case 2:
+                ok = 0;
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
+                for (int i = 0; i < sizeof(users); i++) {
+                    if (atoi(recv_buffer) == users[i].id && ok == 0) {
+                        posts = get_all_user_posts(conn, users[i].id);
+                        int postsCounts = get_user_posts_counts(conn, users[i].id);
+                        snprintf(send_buffer, sizeof(send_buffer), "User id:%d\nUser name:%s\n\n", posts[0].userId, posts[0].userName);
+                        for (int j = 0; j < postsCounts; j++) {
+                            printf ("%s\n\n", posts[j].userName);
+                            char chunk[CHUNK_SIZE];
+                            snprintf(chunk, sizeof(chunk), "Id:%d\nDescription:%s\n", posts[j].id, posts[j].description);
+                            strcat(send_buffer, chunk);
+                            strcat(send_buffer, "----------\n");
+                        }
+                        printf ("%s" ,send_buffer);
+                        send(client_sock, send_buffer, sizeof(send_buffer), 0);
+                        ok = 1;
+                        break;
+                    }
+                }
+                char not_found[] = "User not found";
+                if (ok == 0) {
+                    send(client_sock, not_found, strlen(not_found), 0);
+                }
+                break;
+            case 3:
+                ok = 0;
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
+                posts = get_posts(conn);
+                int postsCount = get_posts_counts(conn);
+                for (int i = 0; i < postsCount; i++) {
+                    if (posts[i].id == atoi(recv_buffer) && ok == 0) {
+                        deletePost(conn, posts[i].id);
+                        ok = 1;
+                        break;
+                    }
+                }
+                if (ok == 1) {
+                    char post_deleted[] = "Post has been deleted\n";
+                    send(client_sock, post_deleted, sizeof(post_deleted), 0);
+                }
+                else {
+                    char not_found[] = "Post not found\n";
+                    send(client_sock, not_found, sizeof(not_found), 0);
+                }
+                break;
+            case 4:
+                break;
+            default:
+                break;
+        }
     }
 
     close(client_sock);
@@ -532,7 +609,7 @@ void *unix_server_thread(void *arg) {
             client_info->id = client_id++;
             client_info->sock_fd = client_unix_sock;
 
-            char buffer[100] = {0};
+            char buffer[CHUNK_SIZE] = {0};
             recv(client_unix_sock, buffer, sizeof(buffer) - 1, 0);
 
             if (strcmp(buffer, ADMIN_PASSWORD) == 0) {
