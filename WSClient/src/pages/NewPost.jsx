@@ -18,7 +18,9 @@ const Login = () => {
     const navigate = useNavigate();
 
     const handleImageChange = async(e) => {
-        setImage(await toBase64(e.target.files[0]));
+        const base64aici = await toBase64(e.target.files[0]);
+        console.info(base64aici, "base64aici");
+        setImage(base64aici);
     };
 
     const handleDescriptionChange = (e) => {
@@ -29,11 +31,12 @@ const Login = () => {
         if (image) {
             const [header, imageContent] = image.split("base64,");
             setHeader(header + "base64,")
-            const res = await post(filterType, { image: imageContent});
+            const filterId = Number(filterType[filterType.length - 1]);
+            const res = await post("/filter", { image: imageContent, filterId});
             console.info("am trimis: ", imageContent)
             const processedImage = await res.json();
             console.info("am primit: ", processedImage.image)
-            setImage(header + processedImage.image);
+            setImage(header + "base64," + processedImage.image);
         } else {
             alert('Please upload an image first.');
         }
