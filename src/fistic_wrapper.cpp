@@ -10,9 +10,16 @@
 #include <iostream>
 #include <login.h>
 #include "base64.h" // Include the base64 library
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 using json = nlohmann::json;
 using namespace Pistache;
+
+struct ImageData {
+    unsigned char* dataPtr;
+    size_t dataSize;
+};
 
 struct User login_user(PGconn *conn, const char *username, const char *password, int *returnCode)
 {
@@ -44,39 +51,6 @@ struct User login_user(PGconn *conn, const char *username, const char *password,
     *returnCode = 0;
     PQclear(res);
     return user;
-}
-
-// Function to decode base64-encoded image data
-cv::Mat decodeBase64Image(const std::string& base64Image) {
- // Decode base64 to bytes
-    std::string decoded = base64_decode(base64Image);
-    
-    // Convert bytes to a vector of bytes
-    std::vector<uchar> img_data(decoded.begin(), decoded.end());
-
-    // Decode vector of bytes to OpenCV image
-    cv::Mat img_cv2 = cv::imdecode(cv::Mat(img_data), cv::IMREAD_COLOR);
-    return img_cv2;
-}
-
-
-std::string cv2_to_base64(cv::Mat& image) {
-    std::vector<uchar> buffer;
-    // Encode OpenCV image to JPEG format
-    cv::imencode(".jpg", image, buffer);
-    // Convert JPEG buffer to base64 string
-    std::string encoded_image = base64_encode(buffer.data(), buffer.size());
-    return encoded_image;
-}
-
-cv::Mat applyNegative(const cv::Mat &inputImage)
-{
-    cv::Mat result;
-    cv::bitwise_not(inputImage, result);
-    if (result.channels() == 1) {
-        cv::cvtColor(result, result, cv::COLOR_GRAY2BGR);
-    }
-    return result;
 }
 
 bool register_user(PGconn *conn, const char *username, const char *password)
@@ -223,11 +197,11 @@ public:
         headers.add<Http::Header::AccessControlAllowOrigin>("*");
         headers.add<Http::Header::AccessControlAllowMethods>("GET, POST, PUT, DELETE, OPTIONS");
         headers.add<Http::Header::AccessControlAllowHeaders>("Content-Type, Accept, application/json");
-        // if (!conn || PQstatus(conn) != CONNECTION_OK)
-        // {
-        //     response.send(Http::Code::Service_Unavailable, "Database connection failed\n");
-        //     return;
-        // }
+        if (!conn || PQstatus(conn) != CONNECTION_OK)
+        {
+            response.send(Http::Code::Service_Unavailable, "Database connection failed\n");
+            return;
+        }
 
         if (request.resource() == "/")
         {
@@ -334,30 +308,41 @@ public:
                 response.send(Http::Code::Internal_Server_Error, "Failed to fetch posts\n");
             }
         }
-        else if (request.resource() == "/filter1" && request.method() == Http::Method::Post)
-        {
+        if (request.resource() == "/filter1" && request.method() == Http::Method::Post) {
             auto body = request.body();
             auto jsonBody = json::parse(body);
 
-            std::string imageData = jsonBody["image"].get<std::string>();
-            std::cout << "Image Data: " << imageData << std::endl;
-            // Decode base64-encoded image data
-            cv::Mat image = decodeBase64Image(imageData);
-            if (image.empty())
-            {
-                std::cerr << "Failed to decode image." << std::endl;
-                response.send(Http::Code::Bad_Request, "Failed to decode image.");
-                return;
+            std::vector<uint8_t> imageData = jsonBody["data"].get<std::vector<uint8_t>>();
+            int width = jsonBody["width"];
+            int height = jsonBody["height"];
+
+            // Print imageData content
+            std::cout << "Received image data (" << imageData.size() << " bytes):\n";
+            for (size_t i = 0; i < imageData.size(); ++i) {
+                std::cout << std::setw(3) << static_cast<int>(imageData[i]) << " ";
+                if ((i + 1) % 20 == 0) {  // Print 20 values per line for readability
+                    std::cout << "\n";
+                }
             }
+            std::cout << "\n";
 
-            // Apply negative filter
-            cv::Mat processedImage = applyNegative(image);
+            // Convert imageData to cv::Mat
+            cv::Mat image(height, width, CV_8UC4, imageData.data());  // Assuming RGBA
 
-            // Convert encoded buffer to base64 string
-            std::string processedBase64Image = cv2_to_base64(processedImage);
+            // Convert to grayscale
+            cv::Mat grayImage;
+            cv::cvtColor(image, grayImage, cv::COLOR_RGBA2GRAY);
+
+            // Convert to black and white
+            cv::Mat bwImage;
+            cv::threshold(grayImage, bwImage, 128, 255, cv::THRESH_BINARY);
+
+            // Encode the result back to a string
+            std::vector<uchar> buf;
+            cv::imencode(".jpg", bwImage, buf);
 
             json responseBody;
-            responseBody["image"] = processedBase64Image;
+            responseBody["image"] = std::vector<char>(buf.begin(), buf.end());
 
             response.send(Http::Code::Ok, responseBody.dump());
         }
