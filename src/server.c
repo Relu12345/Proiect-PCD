@@ -468,8 +468,10 @@ void *admin_handler(void *arg) {
     PGconn *conn = NULL;
     printf("Admin client connected.\n");
 
+    int users_count = 0;
+
     conn = PQconnectdb(DB_CONNECTION);
-    users = get_all_users(conn);
+    users = get_all_users(conn, &users_count);
 
     char recv_buffer[CHUNK_SIZE];
     char send_buffer[CHUNK_SIZE];
@@ -491,48 +493,51 @@ void *admin_handler(void *arg) {
         int choice = atoi(recv_buffer);
         switch(choice) {
             case 1:
-                for (int i = 0; i < sizeof(users); i++) {
-                    strcat(send_buffer, users[i].name);
-                    strcat(send_buffer, " ");
-                    char id_str[CHUNK_SIZE];
-                    snprintf(id_str, sizeof(id_str), "%d", users[i].id);
-                    strcat(send_buffer, id_str);
-                    strcat(send_buffer, "\n");
-                    // free(id_str);
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                memset(send_buffer, 0, sizeof(send_buffer));
+                int offset = 0;
+                for (int i = 0; i < users_count; i++) {
+                    offset += snprintf(send_buffer + offset, sizeof(send_buffer) - offset, "%s %d\n", users[i].name, users[i].id);
+                    printf("user name[%d]: %s\n", users[i].id, users[i].name);
                 }
-                send(client_sock, send_buffer, sizeof(send_buffer), 0);
+                send(client_sock, send_buffer, offset, 0);
                 
                 break;
             case 2:
                 ok = 0;
                 memset(recv_buffer, 0, sizeof(recv_buffer));
-                recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
-                for (int i = 0; i < sizeof(users); i++) {
-                    if (atoi(recv_buffer) == users[i].id && ok == 0) {
-                        posts = get_all_user_posts(conn, users[i].id);
-                        int postsCounts = get_user_posts_counts(conn, users[i].id);
-                        snprintf(send_buffer, sizeof(send_buffer), "User id:%d\nUser name:%s\n\n", posts[0].userId, posts[0].userName);
-                        for (int j = 0; j < postsCounts; j++) {
-                            printf ("%s\n\n", posts[j].userName);
-                            char chunk[CHUNK_SIZE];
-                            snprintf(chunk, sizeof(chunk), "Id:%d\nDescription:%s\n", posts[j].id, posts[j].description);
-                            strcat(send_buffer, chunk);
-                            strcat(send_buffer, "----------\n");
-                        }
-                        printf ("%s" ,send_buffer);
-                        send(client_sock, send_buffer, sizeof(send_buffer), 0);
-                        ok = 1;
-                        break;
-                    }
+                memset(send_buffer, 0, sizeof(send_buffer));
+                if (recv(client_sock, recv_buffer, sizeof(recv_buffer), 0) <= 0) {
+                    perror("Failed to receive user ID from client");
+                    break;
                 }
-                char not_found[] = "User not found";
-                if (ok == 0) {
-                    send(client_sock, not_found, strlen(not_found), 0);
+
+                int user_id = atoi(recv_buffer);
+                printf("received user_id: %d\n", user_id);
+                posts = get_all_user_posts(conn, user_id);
+                int posts_count = get_user_posts_counts(conn, user_id);
+                printf("posts count: %d\n", posts_count);
+
+                if (posts_count > 0) {
+                    snprintf(send_buffer, sizeof(send_buffer), "User id:%d\nUser name:%s\n\n", posts[0].userId, posts[0].userName);
+                    for (int j = 0; j < posts_count; j++) {
+                        char chunk[CHUNK_SIZE];
+                        snprintf(chunk, sizeof(chunk), "Id:%d\nDescription:%s\n", posts[j].id, posts[j].description);
+                        strcat(send_buffer, chunk);
+                        strcat(send_buffer, "----------\n");
+                    }
+                    printf ("%s" ,send_buffer);
+                    send(client_sock, send_buffer, sizeof(send_buffer), 0);
+                } else {
+                    char not_found[] = "User has no posts or user does not exist";
+                    send(client_sock, not_found, sizeof(not_found), 0);
                 }
                 break;
             case 3:
                 ok = 0;
                 memset(recv_buffer, 0, sizeof(recv_buffer));
+                memset(send_buffer, 0, sizeof(send_buffer));
+
                 recv(client_sock, recv_buffer, sizeof(recv_buffer), 0);
                 posts = get_posts(conn);
                 int postsCount = get_posts_counts(conn);
@@ -553,6 +558,45 @@ void *admin_handler(void *arg) {
                 }
                 break;
             case 4:
+                memset(recv_buffer, 0, sizeof(recv_buffer));
+                if (recv(client_sock, recv_buffer, sizeof(recv_buffer), 0) <= 0) {
+                    perror("Failed to receive user ID from client");
+                    break;
+                }
+                
+                int user_id_block = atoi(recv_buffer);
+
+                bool is_blocked = is_user_blocked(conn, user_id_block);
+
+                char status_message[100];
+                snprintf(status_message, sizeof(status_message), "User is currently: %s\nDo you want to change the status (Y/N)?", is_blocked ? "Blocked" : "Unblocked");
+                send(client_sock, status_message, sizeof(status_message), 0);
+
+                char admin_choice;
+                if (recv(client_sock, &admin_choice, sizeof(admin_choice), 0) <= 0) {
+                    perror("Failed to receive admin's choice");
+                    break;
+                }
+
+                if (admin_choice == 'Y' || admin_choice == 'y') {
+                    // Toggle the blocked status of the user
+                    bool success = block_user(conn, user_id_block);
+
+                    is_blocked = !is_blocked;
+
+                    if (success) {
+                        const char* status = is_blocked ? "Blocked" : "Unblocked";
+                        
+                        char success_message[100];
+                        snprintf(success_message, sizeof(success_message), "User is now: %s", status);
+                        send(client_sock, success_message, sizeof(success_message), 0);
+                    } else {
+                        send(client_sock, "Failed to update user status.", sizeof("Failed to update user status."), 0);
+                    }
+                }
+                else {
+                    send(client_sock, "Operation canceled.", sizeof("Operation canceled."), 0);
+                }
                 break;
             default:
                 break;

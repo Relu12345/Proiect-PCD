@@ -40,7 +40,11 @@ struct Post* get_posts(PGconn* conn);
 
 struct Post* get_all_user_posts(PGconn* conn, int userId);
 
-struct User* get_all_users(PGconn* conn);
+struct User* get_all_users(PGconn* conn, int* count);
+
+bool block_user(PGconn* conn, int user_id);
+
+bool is_user_blocked(PGconn* conn, int user_id);
 
 bool register_user(PGconn* conn, const char* username, const char* password);
 

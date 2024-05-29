@@ -61,7 +61,7 @@ int main() {
         printf("Enter option to send to the server (or 'exit' to quit): ");
         
         fgets(buffer, sizeof(buffer), stdin);
-        
+            
         buffer[strcspn(buffer, "\n")] = 0;
         if (strncmp(buffer, "exit", 4) == 0) {
             break;
@@ -76,6 +76,7 @@ int main() {
         int bytes_received;
         switch(choice) {
             case 1:
+                memset(recv_message, 0, sizeof(recv_message));
                 bytes_received = recv(sock, recv_message, sizeof(recv_message), 0);
                 if (bytes_received > 0) {
                     printf ("%s",recv_message);
@@ -91,6 +92,8 @@ int main() {
                 break;
             case 2:
                 memset(buffer, 0, sizeof(buffer));
+                memset(recv_message, 0, sizeof(recv_message));
+
                 printf ("\nChoose a user id: ");
                 fgets(buffer, sizeof(buffer), stdin);
                 send(sock, buffer, strlen(buffer), 0);
@@ -108,6 +111,8 @@ int main() {
                 break;
             case 3:
                 memset(buffer, 0, sizeof(buffer));
+                memset(recv_message, 0, sizeof(recv_message));
+
                 printf ("\nChoose a post: ");
                 fgets(buffer, sizeof(buffer), stdin);
                 send(sock, buffer, strlen(buffer), 0);
@@ -124,6 +129,51 @@ int main() {
                 }
                 break;
             case 4:
+                memset(buffer, 0, sizeof(buffer));
+                memset(recv_message, 0, sizeof(recv_message));
+
+                printf("Enter user ID to block/unblock: ");
+                fflush(stdout);
+                if (fgets(recv_message, sizeof(recv_message), stdin) == NULL) {
+                    fprintf(stderr, "Error reading input.\n");
+                    break;
+                }
+                
+                if (send(sock, recv_message, strlen(recv_message), 0) == -1) {
+                    perror("send error");
+                    break;
+                }
+                
+                memset(buffer, 0, sizeof(buffer));
+                if (recv(sock, buffer, sizeof(buffer), 0) <= 0) {
+                    perror("Failed to receive server response");
+                    break;
+                }
+                
+                printf("%s\n", buffer);
+
+                char admin_choice;
+                printf("Enter 'Y' to change the status, or 'N' to cancel: ");
+                
+                memset(recv_message, 0, sizeof(recv_message));
+                if (fgets(recv_message, sizeof(recv_message), stdin) == NULL) {
+                    fprintf(stderr, "Error reading input.\n");
+                    break;
+                }
+                admin_choice = recv_message[0];
+
+                if (send(sock, &admin_choice, sizeof(admin_choice), 0) == -1) {
+                    perror("send error");
+                    break;
+                }
+
+                memset(buffer, 0, sizeof(buffer));
+                if (recv(sock, buffer, sizeof(buffer), 0) <= 0) {
+                    perror("Failed to receive server response");
+                    break;
+                }
+
+                printf("%s\n", buffer);
                 break;
             default:
                 break;
