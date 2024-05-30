@@ -238,7 +238,7 @@ def create_main_screen(user, client_posts, client_sock, option):
 
     def send_like(post_id, user_id):
         SIGNAL_LIKE = b"L"
-        send_data = SIGNAL_LIKE + struct.pack("ii", post_id, user_id)
+        send_data = SIGNAL_LIKE + struct.pack("ii", user_id, post_id)
         client_sock.sendall(send_data)
 
     root = tk.Tk()
