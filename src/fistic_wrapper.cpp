@@ -17,6 +17,68 @@ const std::string b64table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 using json = nlohmann::json;
 using namespace Pistache;
 
+void saveImageToDatabase(PGconn* conn, const std::string &base64Image, const std::string &description, int userId)
+{
+    // Decode the base64 image
+    std::string decodedImage = base64_decode(base64Image);
+
+    // Establish a connection to the database
+
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        std::cerr << "Connection to database failed: " << PQerrorMessage(conn) << std::endl;
+        PQfinish(conn);
+        return;
+    }
+
+    // Prepare the SQL query
+    const char *paramValues[3];
+    int paramLengths[3];
+    int paramFormats[3];
+
+    // userId
+    std::string userIdStr = std::to_string(userId);
+    paramValues[0] = userIdStr.c_str();
+    paramLengths[0] = userIdStr.length();
+    paramFormats[0] = 0; // text format
+
+    // description
+    paramValues[1] = description.c_str();
+    paramLengths[1] = description.length();
+    paramFormats[1] = 0; // text format
+
+    // image
+    paramValues[2] = decodedImage.data();
+    paramLengths[2] = decodedImage.size();
+    paramFormats[2] = 1; // binary format
+
+    // Execute the SQL query
+    PGresult *res = PQexecParams(
+        conn,
+        "INSERT INTO post (user_id, image, description) VALUES ($1::int, $2::bytea, $3::text)",
+        3,       // number of parameters
+        nullptr, // param types
+        paramValues,
+        paramLengths,
+        paramFormats,
+        0 // result format (0 = text, 1 = binary)
+    );
+
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        std::cerr << "Insert failed: " << PQerrorMessage(conn) << std::endl;
+        PQclear(res);
+        PQfinish(conn);
+        return;
+    }
+
+    std::cout << "Insert successful!" << std::endl;
+
+    // Clean up
+    PQclear(res);
+    PQfinish(conn);
+}
+
 std::string base64_decode2(const std::string &encoded_string)
 {
     std::string decoded_string;
@@ -277,6 +339,23 @@ public:
                 memset(c_username, 0, sizeof(c_username));
                 memset(c_password, 0, sizeof(c_password));
             }
+        }
+        else if (request.resource() == "/post" && request.method() == Http::Method::Post)
+        {
+            auto body = request.body();
+            if (body.empty())
+            {
+                response.send(Http::Code::Bad_Request, "Body is empty!!!");
+                return;
+            }
+            nlohmann::json data = nlohmann::json::parse(body);
+            std::string base64Image = data["image"];
+            std::string description = data["description"];
+            int userId = data["userId"];
+
+            saveImageToDatabase(conn, base64Image, description, userId);
+
+            response.send(Http::Code::Ok, "Post created successfully");
         }
         else if (request.resource() == "/register" && request.method() == Http::Method::Post)
         {

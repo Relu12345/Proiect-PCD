@@ -9,13 +9,11 @@ const Login = () => {
     const navigate = useNavigate();
     const login = async () => {
         const res = await post("/login", { username, password });
-        console.info(res);
         if(res.status === 409) {
             alert("An account with that username exists!");
         }
         if (res && res.ok) {
             const data = await res.json();
-            console.info(data);
             localStorage.setItem("username", data.name);
             localStorage.setItem("id", data.id);
             setTimeout(() => navigate("/"), 500);

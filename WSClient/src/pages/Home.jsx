@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import get from '../common/get';
 import Post from './Post'
+import { useNavigate } from 'react-router-dom';
 
 
 const Home = () => {
@@ -9,6 +10,18 @@ const Home = () => {
     const [counter, setCounter] = useState(0);
     const [maxIndex, setMaxIndex] = useState(0);
     const [post, setPost] = useState();
+    
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const userId = localStorage.getItem("id");
+        const userName = localStorage.getItem("username");
+
+        if(!userId || !userName) {
+            navigate("/login");
+        }
+    }, [])
+
 
     useEffect(() => {
         const fetchData = async (a) => {
@@ -23,6 +36,8 @@ const Home = () => {
         }
         fetchData();
     }, [counter]);
+
+
 
     useEffect(() => {
         setPost(posts[index]);

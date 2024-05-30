@@ -77,7 +77,8 @@
         "forward_list": "cpp",
         "unordered_set": "cpp",
         "regex": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "csetjmp": "cpp"
     },
     "python.analysis.extraPaths": [
         "./src",

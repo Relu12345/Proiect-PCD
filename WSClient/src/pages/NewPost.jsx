@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import post from '../common/posts';
 import './loginRegister.css';
 import { useNavigate } from 'react-router-dom';
@@ -22,10 +22,18 @@ const Login = () => {
 
     const handleImageChange = async (e) => {
         const base64aici = await toBase64(e.target.files[0]);
-        console.info(base64aici, "base64aici");
         setoriginalImage(base64aici);
         setImage(base64aici);
     };
+
+    useEffect(() => {
+        const userId = localStorage.getItem("id");
+        const userName = localStorage.getItem("username");
+
+        if(!userId || !userName) {
+            navigate("/login");
+        }
+    }, [])
 
     const handleDescriptionChange = (e) => {
         setDescription(e.target.value);
@@ -37,18 +45,20 @@ const Login = () => {
             setHeader(header + "base64,")
             const filterId = Number(filterType[filterType.length - 1]);
             const res = await post("/filter", { image: imageContent, filterId });
-            console.info("am trimis: ", imageContent)
             const processedImage = await res.json();
-            console.info("am primit: ", processedImage.image)
             setImage(header + "base64," + processedImage.image);
         } else {
             alert('Please upload an image first.');
         }
     };
 
-    const handleSend = () => {
+    const handleSend = async() => {
         if (image && description) {
-            post("/send", { image, description, filter });
+            const [header, imageContent] = image.split("base64,");
+            const res = await post("/post", { image: imageContent, description, userId: Number(localStorage.getItem('id')) });
+            if(res.ok) {
+                navigate("/");
+            }
         } else {
             alert('Please upload an image and enter a description.');
         }
@@ -58,7 +68,6 @@ const Login = () => {
         setImage(originalImage);
         setDescription('');
     };
-    console.info(image);
     return (
         <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ border: "10px solid black", height: 800, width: 1000, textAlign: 'center', padding: 30, position: 'relative' }}>
