@@ -17,66 +17,55 @@ const std::string b64table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 using json = nlohmann::json;
 using namespace Pistache;
 
-void saveImageToDatabase(PGconn* conn, const std::string &base64Image, const std::string &description, int userId)
+void saveImageToDatabase(PGconn *conn, const std::string &base64Image, const std::string &description, int userId)
 {
-    // Decode the base64 image
-    std::string decodedImage = base64_decode(base64Image);
+    // // Decode the base64 image
+    // std::string decodedImage = base64_decode(base64Image);
 
-    // Establish a connection to the database
+    // // Establish a connection to the database
 
-    if (PQstatus(conn) != CONNECTION_OK)
-    {
-        std::cerr << "Connection to database failed: " << PQerrorMessage(conn) << std::endl;
-        PQfinish(conn);
-        return;
-    }
+    // if (PQstatus(conn) != CONNECTION_OK)
+    // {
+    //     std::cerr << "Connection to database failed: " << PQerrorMessage(conn) << std::endl;
+    //     PQfinish(conn);
+    //     return;
+    // }
 
-    // Prepare the SQL query
-    const char *paramValues[3];
-    int paramLengths[3];
-    int paramFormats[3];
+    // // Prepare the SQL query
+    // const char *paramValues[3];
+    // int paramLengths[3];
+    // int paramFormats[3];
 
-    // userId
-    std::string userIdStr = std::to_string(userId);
-    paramValues[0] = userIdStr.c_str();
-    paramLengths[0] = userIdStr.length();
-    paramFormats[0] = 0; // text format
+    // // std::cout << base64_decode;
+    // // userId
+    // std::string userIdStr = std::to_string(userId);
+    // paramValues[0] = userIdStr.c_str();
+    // paramLengths[0] = userIdStr.length();
+    // paramFormats[0] = 0; // text format
 
-    // description
-    paramValues[1] = description.c_str();
-    paramLengths[1] = description.length();
-    paramFormats[1] = 0; // text format
+    // // description
+    // paramValues[1] = description.c_str();
+    // paramLengths[1] = description.length();
+    // paramFormats[1] = 0; // text format
 
-    // image
-    paramValues[2] = decodedImage.data();
-    paramLengths[2] = decodedImage.size();
-    paramFormats[2] = 1; // binary format
+    // // image
+    // paramValues[2] = decodedImage.data();
+    // paramLengths[2] = decodedImage.size();
+    // paramFormats[2] = 1; // binary format
 
-    // Execute the SQL query
-    PGresult *res = PQexecParams(
-        conn,
-        "INSERT INTO post (user_id, image, description) VALUES ($1::int, $2::bytea, $3::text)",
-        3,       // number of parameters
-        nullptr, // param types
-        paramValues,
-        paramLengths,
-        paramFormats,
-        0 // result format (0 = text, 1 = binary)
-    );
+    // if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    // {
+    //     std::cerr << "Insert failed: " << PQerrorMessage(conn) << std::endl;
+    //     PQclear(res);
+    //     PQfinish(conn);
+    //     return;
+    // }
 
-    if (PQresultStatus(res) != PGRES_COMMAND_OK)
-    {
-        std::cerr << "Insert failed: " << PQerrorMessage(conn) << std::endl;
-        PQclear(res);
-        PQfinish(conn);
-        return;
-    }
+    // std::cout << "Insert successful!" << std::endl;
 
-    std::cout << "Insert successful!" << std::endl;
-
-    // Clean up
-    PQclear(res);
-    PQfinish(conn);
+    // // Clean up
+    // PQclear(res);
+    // PQfinish(conn);
 }
 
 std::string base64_decode2(const std::string &encoded_string)
@@ -294,6 +283,16 @@ public:
         }
     }
 
+    void handleOptionsRequest(const Rest::Request &request, Http::ResponseWriter response)
+    {
+        response.headers()
+            .add<Http::Header::AccessControlAllowOrigin>("*")
+            .add<Http::Header::AccessControlAllowMethods>("GET, POST, OPTIONS")
+            .add<Http::Header::AccessControlAllowHeaders>("Content-Type");
+
+        response.send(Http::Code::No_Content);
+    }
+
     void onRequest(const Http::Request &request, Http::ResponseWriter response) override
     {
         Http::Header::Collection &headers = response.headers();
@@ -305,6 +304,16 @@ public:
         //     response.send(Http::Code::Service_Unavailable, "Database connection failed\n");
         //     return;
         // }
+
+        if (request.method() == Http::Method::Options)
+        {
+            response.headers()
+                .add<Http::Header::AccessControlAllowOrigin>("*")
+                .add<Http::Header::AccessControlAllowMethods>("GET, POST, OPTIONS")
+                .add<Http::Header::AccessControlAllowHeaders>("Content-Type");
+
+            response.send(Http::Code::No_Content);
+        }
 
         if (request.resource() == "/")
         {
