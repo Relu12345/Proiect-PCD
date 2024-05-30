@@ -1,5 +1,4 @@
-import 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import get from '../common/get';
 import Post from './Post'
 

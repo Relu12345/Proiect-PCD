@@ -1,6 +1,5 @@
-import 'react';
 import post from '../common/posts';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import './loginRegister.css'
 
 const Register = () => {

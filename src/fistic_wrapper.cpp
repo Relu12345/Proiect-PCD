@@ -378,10 +378,57 @@ public:
                 std::cout << filterId << '\n';
                 if (filterId == 1)
                 {
-                    cvtColor(image, image, cv::COLOR_BGR2GRAY);
+                    cv::bitwise_not(image, image);
+                    if (image.channels() == 1)
+                    {
+                        cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+                    }
                 }
-
-                // Encode grayscale image
+                else if (filterId == 2)
+                {
+                    cv::transform(image, image, cv::Matx33f(0.272, 0.534, 0.131, 0.349, 0.686, 0.168, 0.393, 0.769, 0.189));
+                    if (image.channels() == 1)
+                    {
+                        cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+                    }
+                }
+                else if (filterId == 3)
+                {
+                    cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+                    cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+                }
+                else if (filterId == 4)
+                {
+                    cv::GaussianBlur(image, image, cv::Size(15, 15), 10);
+                }
+                else if (filterId == 5)
+                {
+                    cv::Mat gray, edges;
+                    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+                    cv::medianBlur(gray, edges, 7);
+                    cv::adaptiveThreshold(edges, edges, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 9, 2);
+                    cv::cvtColor(edges, edges, cv::COLOR_GRAY2BGR);
+                    cv::bitwise_and(image, edges, image);
+                }
+                else if (filterId == 6)
+                {
+                    cv::Mat gray, blur;
+                    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+                    cv::GaussianBlur(gray, blur, cv::Size(21, 21), 0);
+                    cv::divide(gray, blur, image, 256.0);
+                    cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+                }
+                else if (filterId == 7)
+                {
+                    cv::applyColorMap(image, image, cv::COLORMAP_JET);
+                }
+                else
+                {
+                    cv::Mat gray;
+                    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+                    cv::Canny(gray, image, 100, 200);
+                    cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+                }
                 std::vector<uchar> buffer;
                 imencode(".jpg", image, buffer);
 

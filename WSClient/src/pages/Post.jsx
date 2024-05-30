@@ -1,6 +1,11 @@
-import 'react';
+import React from 'react';
 import postreq from '../common/posts';
+import { useNavigate } from 'react-router-dom';
+
 const Post = ({ post, index, maxIndex, setIndex, setPost, posts, setCounter }) => {
+
+    const navigate = useNavigate();
+
 
     const likeDislike = () => {
         postreq("/like", {postId: post.id, userId: parseInt(localStorage.getItem("id"))});
@@ -59,13 +64,13 @@ const Post = ({ post, index, maxIndex, setIndex, setPost, posts, setCounter }) =
                                 setPost((post) => newPost);
                             }
                             likeDislike();
-                        }}>Like</button>
+                        }}>{post.liked ? "Liked" : "Like"}</button>
                     </div>
                     <b fontSize={24}>{post.likeCount}</b>
                 </div>
             </div>
             <div style={{ position: 'relative', bottom: 0, left: "460px", marginTop: 20 }}>
-                <button style={{ backgroundColor: 'rgb(0, 255, 0)' }} >New Post</button>
+                <button style={{ backgroundColor: 'rgb(0, 255, 0)' }} onClick={() => navigate('/post')}>New Post</button>
             </div>
         </div>
     </div>
