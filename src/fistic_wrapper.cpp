@@ -283,28 +283,8 @@ public:
         }
     }
 
-    void handleOptionsRequest(const Rest::Request &request, Http::ResponseWriter response)
-    {
-        response.headers()
-            .add<Http::Header::AccessControlAllowOrigin>("*")
-            .add<Http::Header::AccessControlAllowMethods>("GET, POST, OPTIONS")
-            .add<Http::Header::AccessControlAllowHeaders>("Content-Type");
-
-        response.send(Http::Code::No_Content);
-    }
-
     void onRequest(const Http::Request &request, Http::ResponseWriter response) override
     {
-        Http::Header::Collection &headers = response.headers();
-        headers.add<Http::Header::AccessControlAllowOrigin>("*");
-        headers.add<Http::Header::AccessControlAllowMethods>("GET, POST, PUT, DELETE, OPTIONS");
-        headers.add<Http::Header::AccessControlAllowHeaders>("Content-Type, Accept, application/json");
-        // if (!conn || PQstatus(conn) != CONNECTION_OK)
-        // {
-        //     response.send(Http::Code::Service_Unavailable, "Database connection failed\n");
-        //     return;
-        // }
-
         if (request.method() == Http::Method::Options)
         {
             response.headers()
@@ -313,7 +293,19 @@ public:
                 .add<Http::Header::AccessControlAllowHeaders>("Content-Type");
 
             response.send(Http::Code::No_Content);
+            return;
         }
+
+        if (!conn || PQstatus(conn) != CONNECTION_OK)
+        {
+            response.send(Http::Code::Service_Unavailable, "Database connection failed\n");
+            return;
+        }
+
+        response.headers()
+            .add<Http::Header::AccessControlAllowOrigin>("*")
+            .add<Http::Header::AccessControlAllowMethods>("GET, POST, PUT, DELETE, OPTIONS")
+            .add<Http::Header::AccessControlAllowHeaders>("Content-Type, Accept, application/json");
 
         if (request.resource() == "/")
         {
