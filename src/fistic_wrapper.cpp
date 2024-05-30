@@ -126,17 +126,6 @@ struct User login_user(PGconn *conn, const char *username, const char *password,
 
 // Function to decode base64-encoded image data
 
-cv::Mat applyNegative(const cv::Mat &inputImage)
-{
-    cv::Mat result;
-    cv::bitwise_not(inputImage, result);
-    if (result.channels() == 1)
-    {
-        cv::cvtColor(result, result, cv::COLOR_GRAY2BGR);
-    }
-    return result;
-}
-
 bool register_user(PGconn *conn, const char *username, const char *password)
 {
     if (username == NULL || username[0] == '\0' || password == NULL || password[0] == '\0')
