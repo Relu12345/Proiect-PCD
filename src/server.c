@@ -340,16 +340,16 @@ void *client_handler(void *arg) {
         else if (strcmp(buffer, "L") == 0) {
             int postId, userId;
 
-            if (recv(client_sock, &postId, sizeof(postId), 0) <= 0) {
-                perror("Failed to receive post id from client");
+            if (recv(client_sock, &userId, sizeof(userId), 0) <= 0) {
+                perror("Failed to receive user id from client");
                 printf("Client %d disconnected.\n", id);
                 close(client_sock);
                 free(client_info);
                 pthread_exit(NULL);
             }
 
-            if (recv(client_sock, &userId, sizeof(userId), 0) <= 0) {
-                perror("Failed to receive user id from client");
+            if (recv(client_sock, &postId, sizeof(postId), 0) <= 0) {
+                perror("Failed to receive post id from client");
                 printf("Client %d disconnected.\n", id);
                 close(client_sock);
                 free(client_info);

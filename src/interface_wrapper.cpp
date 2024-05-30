@@ -13,6 +13,8 @@
 #include <atomic>
 #include <vector>
 #include <iomanip>
+#include <thread>
+#include <chrono>
 #include "database.h"
 #include "connection.h"
 #include <cstddef>
@@ -44,6 +46,7 @@ std::atomic<bool> mainWindowVisible(true);
 std::atomic<bool> postWindowVisible(true);
 std::atomic<bool> image_uploaded(false);
 std::atomic<bool> filterPressed(false);
+std::atomic<bool> failedFilter(false);
 std::atomic<bool> resetRequested(false);
 std::atomic<bool> sendRequested(false);
 std::atomic<bool> postSuccessMessageVisible(false);
@@ -293,12 +296,88 @@ void mainOnMouse(int event, int x, int y, int flags, void* userdata) {
 
 cv::Mat originalImage;
 cv::Mat currentImage;
+bool autoFilter = false;
+
+void processFilter(int i) {
+    int attemptCount = 0;
+    const int maxAttempts = 10;
+    failedFilter = false;
+
+    while (attemptCount < maxAttempts) {
+        if (!originalImage.empty()) {
+            if (send(serverSock, &SIGNAL_FILTER, sizeof(SIGNAL_FILTER), 0) == -1) {
+                perror("send failed");
+                exit(EXIT_FAILURE);
+            }
+
+            std::cout << "filter signal sent successfully!" << std::endl;
+
+            if (send(serverSock, &i, sizeof(i), 0) == -1) {
+                perror("send failed");
+                exit(EXIT_FAILURE);
+            }
+
+            std::cout << "filter sent successfully!" << std::endl;
+
+            if (!originalImage.empty()) {
+                cv::imencode(postData.imageType, originalImage, buffer);
+                size_t imageSizeSend = buffer.size();
+                sendImage(serverSock, buffer, imageSizeSend);
+            } else {
+                std::cout << "EMPTY IMAGE!!!!" << std::endl;
+                continue;
+            }
+
+            std::cout << "after send in client" << std::endl;
+
+            std::vector<uchar> newImageData = receiveImage(serverSock);
+
+            std::cout << "before decode in client" << std::endl;
+            try {
+                currentImage = cv::imdecode(newImageData, cv::IMREAD_COLOR);
+                if (currentImage.empty()) {
+                    throw cv::Exception(cv::Error::StsError, "Decoded image is empty", __FUNCTION__, __FILE__, __LINE__);
+                }
+
+                if (currentImage.channels() != 3) {
+                    cv::cvtColor(currentImage, currentImage, cv::COLOR_GRAY2BGR);
+                }
+                std::cout << "after decode in client" << std::endl;
+                filterPressed = true;
+                break;
+            } catch (const cv::Exception& e) {
+                std::cerr << "cv::cvtColor failed: " << e.what() << std::endl;
+                // Add a 50 ms delay before retrying
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            } catch (const std::exception& e) {
+                std::cerr << "Standard exception: " << e.what() << std::endl;
+                // Add a 50 ms delay before retrying
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            } catch (...) {
+                std::cerr << "Unknown exception occurred" << std::endl;
+                // Add a 50 ms delay before retrying
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
+
+            std::cout << "after the try-catch" << std::endl;
+        } else {
+            std::cerr << "Original image is empty, exiting loop." << std::endl;
+            break;
+        }
+        attemptCount++;
+    }
+
+    if (attemptCount >= maxAttempts) {
+        std::cerr << "Maximum attempts reached. Filter failed." << std::endl;
+        failedFilter = true;
+        filterPressed = true;
+    }
+}
 
 void postOnMouse(int event, int x, int y, int flags, void* userdata) {
     if (event == cv::EVENT_LBUTTONDOWN) {
         PostData* data = (PostData*)userdata;
         if (x >= 850 && x <= 960 && y >= 700 && y <= 750) {
-            std::cout << "Reset button pressed!" << std::endl;
             if (!currentImage.empty())
                 filterPressed = true;
                 resetRequested = true;
@@ -319,42 +398,16 @@ void postOnMouse(int event, int x, int y, int flags, void* userdata) {
                 int buttonY = (i < 4) ? 500 : 600;
                 if (i == 4) buttonX = ogButtonX;
                 if (x >= buttonX && x <= buttonX + 100 && y >= buttonY && y <= buttonY + buttonHeight) {
-                    if (!originalImage.empty()) {
-                        if (send(serverSock, &SIGNAL_FILTER, sizeof(SIGNAL_FILTER), 0) == -1) {
-                            perror("send failed");
-                            exit(EXIT_FAILURE);
-                        }
-
-                        std::cout << "filter signal sent succesfully!" << std::endl;
-
-                        if (send(serverSock, &i, sizeof(i), 0) == -1) {
-                            perror("send failed");
-                            exit(EXIT_FAILURE);
-                        }
-
-                        std::cout << "filter sent succesfully!" << std::endl;
-
-                        if (!originalImage.empty())
-                        {
-                            cv::imencode(postData.imageType, originalImage, buffer);
-                            size_t imageSizeSend = buffer.size();
-                            sendImage(serverSock, buffer, imageSizeSend);
-                        }
-                        else 
-                            std::cout << "EMPTY IMAGE!!!!" << std::endl;
-
-                        std::cout << "after send in client" << std::endl;
-
-                        std::vector<uchar> newImageData = receiveImage(serverSock);
-
-                        std::cout << "before decode in client" << std::endl;
-                        currentImage = cv::imdecode(newImageData, cv::IMREAD_COLOR);
-                        if (currentImage.channels() != 3) {
-                            cv::cvtColor(currentImage, currentImage, cv::COLOR_GRAY2BGR);
-                        }
-                        std::cout << "after decode in client" << std::endl;
-
-                        filterPressed = true;
+                    autoFilter = true;
+                    while (autoFilter) {
+                        processFilter(i);
+                        autoFilter = !filterPressed;
+                    }
+                    if (failedFilter) {
+                        filterPressed = false;
+                        failedFilter = false;
+                        currentImage = originalImage.clone();
+                        resetRequested = true;
                     }
                     break;
                 }
@@ -434,12 +487,12 @@ void sendLike(int postId, int userId) {
         exit(EXIT_FAILURE);
     }
 
-    if (send(serverSock, &postId, sizeof(postId), 0) == -1) {
+    if (send(serverSock, &userId, sizeof(userId), 0) == -1) {
         perror("send failed");
         exit(EXIT_FAILURE);
     }
 
-    if (send(serverSock, &userId, sizeof(userId), 0) == -1) {
+    if (send(serverSock, &postId, sizeof(postId), 0) == -1) {
         perror("send failed");
         exit(EXIT_FAILURE);
     }
@@ -819,6 +872,7 @@ extern "C" void createPostScreen () {
         cv::putText(postScreen, postData.description, cv::Point(25, 425), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 0), 2);
 
         if (resetRequested) {
+            std::cout << "Reset button pressed!" << std::endl;
             resetRequested = false;
             currentImage = originalImage.clone();
         }
