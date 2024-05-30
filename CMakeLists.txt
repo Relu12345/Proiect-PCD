@@ -1,14 +1,18 @@
 cmake_minimum_required(VERSION 3.0)
 project(Proiect_PCD)
 
+set (CMAKE_CXX_STANDARD 17)
+
+include(FetchContent)
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 # Find OpenCV 4 package
 find_package(OpenCV 4 REQUIRED)
 
 # Find PostgreSQL package
 find_package(PostgreSQL REQUIRED)
-
-# Find Nlohmann_json package
-find_package(nlohmann_json REQUIRED)
 
 add_library(database SHARED src/database.c)
 target_include_directories(database PRIVATE ${PostgreSQL_INCLUDE_DIRS})
